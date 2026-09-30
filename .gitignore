@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+
+# secrets / local environment — never commit
+.env
+.env.*
+!.env.example
+
+# backend runtime data (profile photos, chat images, portfolio uploads)
+uploads/
+*.log
+
+# app binaries (GitHub rejects files over 100MB)
+*.apk
+*.aab
+*.ipa
+
+# build output
+dist/
+build/
+.expo/
+web-build/
+*.tsbuildinfo
+
+# generated native projects (EAS/prebuild recreates these)
+mobile/android/
+mobile/ios/
+*.jks
+*.p8
+*.p12
+*.keystore
+*.mobileprovision
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# archived git history kept for reference only
+.git-backups/

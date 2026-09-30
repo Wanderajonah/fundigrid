@@ -1,0 +1,91 @@
+const express = require("express");
+const router = express.Router();
+const { protect } = require("../middleware/auth");
+const User = require("../models/User");
+const Notification = require("../models/Notification");
+const { publicUser, profileExtras } = require("../controllers/authController");
+
+router.get("/profile", protect, async (req, res, next) => {
+  try {
+    res.json({ success: true, user: { ...publicUser(req.user), ...(await profileExtras(req.user)) } });
+  } catch (err) { next(err); }
+});
+
+router.put("/update", protect, async (req, res, next) => {
+  try {
+    const allowed = ["name", "gender", "email", "phone", "profilePhoto", "coverPhoto", "bio", "skills", "experience", "location", "locationLabel", "address", "district", "country", "searchRadiusKm", "onboardingComplete", "role", "availableDays", "availableStartTime", "availableEndTime", "serviceRadius", "verificationDocs", "portfolioImages"];
+    const numeric = ["experience", "searchRadiusKm", "serviceRadius"];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] === undefined) continue;
+      let value = req.body[key];
+      if (key === "portfolioImages") {
+        // Work photos are base64 data URIs kept on the fundi's own row.
+        if (req.user.role !== "fundi") {
+          return res.status(403).json({ success: false, message: "Only fundis can add work photos." });
+        }
+        if (!Array.isArray(value)) {
+          return res.status(400).json({ success: false, message: "portfolioImages must be an array." });
+        }
+        const images = value.filter((v) => typeof v === "string" && v.startsWith("data:image"));
+        if (images.length !== value.length) {
+          return res.status(400).json({ success: false, message: "Work photos must be image data." });
+        }
+        if (images.length > 6) {
+          return res.status(400).json({ success: false, message: "You can keep up to 6 work photos." });
+        }
+        if (images.some((img) => img.length > 1500000)) {
+          return res.status(400).json({ success: false, message: "A photo is too large. Pick a smaller image." });
+        }
+        value = images;
+      } else if (numeric.includes(key)) {
+        const n = typeof value === "number" ? value : parseFloat(String(value));
+        if (!Number.isFinite(n)) {
+          return res.status(400).json({ success: false, message: `${key} must be a number` });
+        }
+        value = n;
+      }
+      updates[key] = value;
+    }
+    const user = await User.findByIdAndUpdate(req.user.id, updates);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    const { password, ...safeUser } = user;
+    res.json({ success: true, user: safeUser });
+  } catch (err) { next(err); }
+});
+
+router.put("/location", protect, async (req, res, next) => {
+  try {
+    const lat = Number(req.body.lat);
+    const lng = Number(req.body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({ success: false, message: "lat and lng must be numbers" });
+    }
+    const updates = { location: { lat, lng } };
+    if (req.body.address !== undefined) updates.locationLabel = String(req.body.address);
+    const user = await User.findByIdAndUpdate(req.user.id, updates);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    const { password, ...safeUser } = user;
+    res.json({ success: true, user: safeUser });
+  } catch (err) { next(err); }
+});
+
+router.get("/notifications", protect, async (req, res, next) => {
+  try {
+    const rows = await Notification.find({ userId: req.user.id });
+    rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    res.json({ success: true, notifications: rows });
+  } catch (err) { next(err); }
+});
+
+router.get("/notifications/unread-count", protect, async (req, res, next) => {
+  try {
+    const all = await Notification.find({ userId: req.user.id });
+    const count = all.filter((n) => !n.read).length;
+    res.json({ success: true, count });
+  } catch (err) { next(err); }
+});
+
+module.exports = router;
