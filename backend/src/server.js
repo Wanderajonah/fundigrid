@@ -72,6 +72,8 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.get("/api/health", (req, res) => {
   const { isConfigured } = require("./services/supportBotService");
+  const { otpChannel } = require("./services/otpService");
+  const comms = otpChannel();
   res.json({
     status: "ok",
     service: "Ufundi API",
@@ -85,7 +87,8 @@ app.get("/api/health", (req, res) => {
       chat: true,
       socket: true,
       wallet: true
-    }
+    },
+    sms: { configured: comms.configured, devMode: comms.devMode }
   });
 });
 
@@ -142,6 +145,9 @@ initializeSocket(server);
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.io server initialized`);
+  const { otpChannel } = require("./services/otpService");
+  const comms = otpChannel();
+  console.log(`SMS: configured=${comms.configured} otpDevMode=${comms.devMode} production=${comms.production}`);
   const lanIp = Object.values(os.networkInterfaces())
     .flat()
     .find((i) => i && i.family === 'IPv4' && !i.internal)?.address;

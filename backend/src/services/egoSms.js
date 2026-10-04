@@ -10,6 +10,11 @@ function isConfigured() {
   return Boolean(process.env.COMMS_ENDPOINT && process.env.COMMS_USERNAME && process.env.COMMS_API_KEY);
 }
 
+// A copied .env often ends the URL with "/", which some gateways 404 on.
+function endpointUrl() {
+  return (process.env.COMMS_ENDPOINT || DEFAULT_ENDPOINT).replace(/\/+$/, "");
+}
+
 // eGoSMS accepts 256XXXXXXXXX, 0XXXXXXXXX and +256XXXXXXXXX — normalise all
 // of them to 256… so the gateway can route them.
 function normalizeNumber(phone) {
@@ -88,7 +93,7 @@ async function sendSms(phone, message) {
     return { success: false, configured: true, message: `Invalid phone number: ${phone}` };
   }
 
-  const endpoint = process.env.COMMS_ENDPOINT || DEFAULT_ENDPOINT;
+  const endpoint = endpointUrl();
   const payload = requestPayload({
     method: "SendSms",
     msgdata: [{
@@ -118,7 +123,7 @@ async function sendSms(phone, message) {
 // Read-only credits check — useful to confirm credentials without spending an SMS.
 async function getBalance() {
   if (!isConfigured()) return { success: false, configured: false, message: "SMS provider not configured" };
-  const endpoint = process.env.COMMS_ENDPOINT || DEFAULT_ENDPOINT;
+  const endpoint = endpointUrl();
   try {
     const { statusCode, data } = await post(endpoint, requestPayload({ method: "Balance" }));
     const ok = statusCode >= 200 && statusCode < 300 && data && typeof data === "object" && data.Balance != null;

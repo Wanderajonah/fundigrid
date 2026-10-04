@@ -6,6 +6,17 @@ const { sendSms, isConfigured } = require("./egoSms");
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
 
+// One place that decides how OTPs leave the server. Render always sets
+// RENDER=true and NODE_ENV=production, so production is detected there.
+function otpChannel() {
+  const configured = isConfigured();
+  const production =
+    process.env.RENDER === "true" || process.env.NODE_ENV === "production";
+  const devMode =
+    process.env.COMMS_DEV_MODE === "true" && !(production && configured);
+  return { configured, production, devMode };
+}
+
 const generateOtp = () => {
   return String(Math.floor(1000 + Math.random() * 9000));
 };
@@ -26,11 +37,19 @@ const sendOtp = async (phone, purpose = "register") => {
   }
 
   // Dev mode prints the OTP to this terminal instead of sending an SMS.
-  // Keep COMMS_DEV_MODE=false in production: the code is returned to the
-  // caller in dev mode so nobody can read OTPs from API responses there.
-  const devMode = process.env.COMMS_DEV_MODE === "true";
+  // On Render (RENDER=true / NODE_ENV=production) configured SMS credentials
+  // always win, so a stray COMMS_DEV_MODE=true can never put live OTP codes
+  // into logs or API responses. Dev mode only survives in production when the
+  // provider is not configured yet — health reports that state.
+  const channel = otpChannel();
+  const devMode = channel.devMode;
 
   if (devMode) {
+    if (channel.production) {
+      console.warn(
+        `[otp] RUNNING IN DEV OTP FALLBACK IN PRODUCTION — set COMMS_ENDPOINT, COMMS_USERNAME and COMMS_API_KEY so codes go out by SMS.`
+      );
+    }
     console.log("\n─────────────────────────────────────────────");
     console.log(`  [DEV OTP] ${phone} (${purpose})`);
     console.log(`  Code: ${code}   (valid ${OTP_EXPIRY_MINUTES} min)`);
@@ -71,4 +90,4 @@ const verifyOtp = async (phone, code, purpose = "register") => {
   return { success: true };
 };
 
-module.exports = { sendOtp, verifyOtp, generateOtp };
+module.exports = { sendOtp, verifyOtp, generateOtp, otpChannel };
