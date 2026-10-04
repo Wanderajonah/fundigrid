@@ -29,6 +29,7 @@ const chatRoutes = require("./routes/chatRoutes");
 const walletRoutes = require("./routes/walletRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const surveyorRoutes = require("./routes/surveyorRoutes");
 const { streamGridFsFile, ensureStorageBuckets } = require("./services/gridfsStorage");
 
 const app = express();
@@ -39,12 +40,23 @@ connectDB().then(async () => {
   await ensureStorageBuckets();
   const bcrypt = require("bcryptjs");
   const User = require("./models/User");
-  const name = process.env.ADMIN_NAME || "Ufundi Admin";
+  const [firstName, ...lastNameParts] = String(process.env.ADMIN_NAME || "Ufundi Admin")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   const email = (process.env.ADMIN_EMAIL || "admin@ufundi.ug").toLowerCase();
   const password = process.env.ADMIN_PASSWORD || "password123";
   User.findOneAndUpdate(
     { email },
-    { name, email, password: bcrypt.hashSync(password, 10), role: "admin", phoneVerified: true, onboardingComplete: true },
+    {
+      firstName: firstName || "Admin",
+      lastName: lastNameParts.join(" "),
+      email,
+      password: bcrypt.hashSync(password, 10),
+      role: "admin",
+      phoneVerified: true,
+      onboardingComplete: true,
+    },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   ).then(() => console.log("Admin user ready")).catch((err) => console.error("Admin creation error:", err));
 });
@@ -89,6 +101,12 @@ app.get("/api/platform-settings", async (req, res, next) => {
       clientFeeRate: settings.clientFeeRate,
       minJobAmount: settings.minJobAmount,
       serviceRadius: settings.serviceRadius,
+      adminName: settings.adminName,
+      adminEmail: settings.adminEmail,
+      autoApprovalFundis: settings.autoApprovalFundis,
+      disputeResolution: settings.disputeResolution,
+      notifications: settings.notifications || [],
+      paymentIntegrations: settings.paymentIntegrations || [],
       currency: "UGX",
     });
   } catch (error) {
@@ -109,6 +127,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/surveyor", surveyorRoutes);
 
 app.use(errorHandler);
 

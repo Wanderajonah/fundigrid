@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from '../src/components/PrimaryButton';
@@ -7,19 +7,50 @@ import FundiSummaryCard from '../src/components/FundiSummaryCard';
 import { IMAGES } from '../src/assets';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../src/contexts/AuthContext';
+import { createReview } from '../src/services/api';
 
 export default function ReviewScreen() {
   const router = useRouter();
-  const { fundiName, trade, rating } = useLocalSearchParams<{
+  const { token } = useAuth();
+  const { fundiName, trade, rating, bookingId, fundiId } = useLocalSearchParams<{
     fundiName?: string;
     trade?: string;
     rating?: string;
+    bookingId?: string;
+    fundiId?: string;
   }>();
   const [selected, setSelected] = useState(0);
   const [review, setReview] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const name = fundiName?.trim() || 'Your fundi';
   const stars = Number(rating) || 0;
+
+  const submitReview = async () => {
+    if (selected < 1) {
+      Alert.alert('Add a rating', 'Tap the stars to rate your fundi before submitting.');
+      return;
+    }
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      await createReview(token, {
+        bookingId: bookingId ? String(bookingId) : undefined,
+        fundiId: fundiId ? String(fundiId) : undefined,
+        rating: selected,
+        comment: review.trim(),
+        service: trade?.trim() || '',
+      });
+      Alert.alert('Review submitted', 'Thanks — your rating helps other clients pick the right fundi.', [
+        { text: 'Done', onPress: () => router.replace('/(tabs)') },
+      ]);
+    } catch (e: any) {
+      Alert.alert('Could not submit', e.message || 'Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
@@ -62,7 +93,7 @@ export default function ReviewScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton title="Submit Review" onPress={() => router.push('/(tabs)')} />
+        <PrimaryButton title="Submit Review" onPress={submitReview} loading={submitting} />
       </View>
     </SafeAreaView>
   );

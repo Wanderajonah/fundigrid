@@ -9,12 +9,13 @@ create extension if not exists pgcrypto;
 -- ============================================================
 create table if not exists users (
   id              text primary key default gen_random_uuid()::text,
-  name            text not null default '',
+  "firstName"     text not null default '',
+  "lastName"      text not null default '',
   gender          text not null default '',
   email           text,
   phone           text,
   password        text,
-  role            text not null check (role in ('customer','fundi','admin')),
+  role            text not null check (role in ('customer','fundi','admin','surveyor')),
   "fundiEnabled"  boolean not null default false,
   "phoneVerified" boolean not null default false,
   "dateOfBirth"   timestamptz,
@@ -40,14 +41,15 @@ create table if not exists users (
   "availableEndTime" text not null default '',
   "serviceRadius" double precision not null default 10,
   "verificationDocs" text[] not null default '{}',
+  "referees"      jsonb not null default '[]'::jsonb,
   _meta           jsonb not null default '{}'::jsonb,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
 
 -- Idempotent upgrades for existing databases
-alter table users drop column if exists "firstName";
-alter table users drop column if exists "lastName";
+alter table users add column if not exists "firstName" text not null default '';
+alter table users add column if not exists "lastName" text not null default '';
 alter table users drop column if exists "pushToken";          -- never read by the app
 alter table users add column if not exists gender text not null default '';
 alter table users add column if not exists "availableDays" text[] not null default '{}';
@@ -55,6 +57,35 @@ alter table users add column if not exists "availableStartTime" text not null de
 alter table users add column if not exists "availableEndTime" text not null default '';
 alter table users add column if not exists "serviceRadius" double precision not null default 10;
 alter table users add column if not exists "verificationDocs" text[] not null default '{}';
+alter table users add column if not exists "referees" jsonb not null default '[]'::jsonb;
+
+-- Quantity surveyors are a fourth role. `create table if not exists` will not
+-- touch the check constraint on a database that already exists, so replace it.
+do $$
+begin
+  alter table users drop constraint if exists users_role_check;
+  alter table users
+    add constraint users_role_check
+    check (role in ('customer','fundi','admin','surveyor'));
+end $$;
+
+-- Names are stored as two fields now. Split any legacy `name` into first and
+-- last, then drop the column so nothing can read it back.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'users' and column_name = 'name'
+  ) then
+    update users
+       set "firstName" = btrim(split_part(name, ' ', 1)),
+           "lastName"  = btrim(substr(name, length(split_part(name, ' ', 1)) + 1))
+     where coalesce(name, '') <> ''
+       and "firstName" = ''
+       and "lastName" = '';
+    alter table users drop column name;
+  end if;
+end $$;
 
 -- `add column if not exists` cannot fix a column that already exists with the
 -- wrong type, so repair `serviceRadius` when an older migration created it as text.
@@ -170,6 +201,22 @@ alter table bookings add column if not exists "fundiName" text not null default 
 alter table bookings add column if not exists "scheduledFor" timestamptz;
 alter table bookings add column if not exists "estimate" jsonb;
 
+-- Quantity-surveyor stage. A request is created, an admin assigns a surveyor,
+-- the surveyor submits a costed estimate, and only then does the request reach
+-- fundis. This lives beside `status` (which keeps its original eight values) so
+-- no existing status map has to learn a new one. Nullable on purpose: rows
+-- written before this stage existed have no surveyor to wait for, and
+-- `surveyService.surveyStage` reads NULL as "already past the gate".
+alter table bookings add column if not exists "surveyorId" text references users (id);
+alter table bookings add column if not exists "surveyorName" text not null default '';
+alter table bookings add column if not exists "surveyStatus" text
+  check ("surveyStatus" in ('AWAITING_ASSIGNMENT','SURVEYOR_ASSIGNED','ESTIMATE_READY'));
+alter table bookings add column if not exists "assignedAt" timestamptz;
+alter table bookings add column if not exists "estimateSubmittedAt" timestamptz;
+alter table bookings add column if not exists "estimateBy" text;
+
+create index if not exists bookings_surveyor_idx on bookings ("surveyorId");
+
 create index if not exists bookings_client_idx on bookings ("clientId");
 create index if not exists bookings_fundi_idx on bookings ("fundiId");
 create index if not exists bookings_expires_idx on bookings ("expiresAt");
@@ -249,6 +296,11 @@ create table if not exists reviews (
 );
 
 create unique index if not exists reviews_job_customer_uq on reviews ("jobId", "customerId") where "jobId" is not null;
+
+-- Bookings are the live job table (jobs is the older quote flow), so reviews
+-- link back through bookingId. One review per client per booking.
+alter table reviews add column if not exists "bookingId" text references bookings (id);
+create unique index if not exists reviews_booking_customer_uq on reviews ("bookingId", "customerId") where "bookingId" is not null;
 
 -- ============================================================
 -- wallets

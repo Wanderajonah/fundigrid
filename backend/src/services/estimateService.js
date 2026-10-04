@@ -39,6 +39,31 @@ function buildEstimate(category) {
     serviceFee,
     total: subtotal + serviceFee,
     currency: "UGX",
+    source: "rate_card",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+// The estimate a quantity surveyor costed by hand. Same shape as the rate-card
+// one so every screen that already renders an estimate keeps working, plus the
+// `source` and the surveyor's own notes.
+function buildSurveyEstimate({ category, labour, materials, serviceFee, notes } = {}) {
+  const label = String(category || "").trim();
+  const lab = Number(labour) || 0;
+  const mat = Number(materials) || 0;
+  const fee =
+    serviceFee !== undefined && serviceFee !== null && serviceFee !== ""
+      ? Math.max(0, Number(serviceFee) || 0)
+      : Math.max(MIN_SERVICE_FEE, Math.round((lab + mat) * SERVICE_FEE_RATE));
+  return {
+    category: label,
+    labour: lab,
+    materials: mat,
+    serviceFee: fee,
+    total: lab + mat + fee,
+    currency: "UGX",
+    source: "surveyor",
+    notes: String(notes || "").trim(),
     createdAt: new Date().toISOString(),
   };
 }
@@ -51,4 +76,4 @@ function estimateFor(booking) {
   return buildEstimate(booking ? booking.category : "");
 }
 
-module.exports = { buildEstimate, estimateFor };
+module.exports = { buildEstimate, buildSurveyEstimate, estimateFor };

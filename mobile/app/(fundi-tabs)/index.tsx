@@ -1,22 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IMAGES } from '../../src/assets';
 import { colors, fonts, radius, spacing, shadowSm } from '../../src/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { getProfile, getFundiBookings, acceptBooking, declineBooking } from '../../src/services/api';
+import { getProfile, updateProfile, getFundiBookings } from '../../src/services/api';
 import { startFundiLocationShare, stopFundiLocationShare } from '../../src/services/fundiLocation';
 
 const ACTIVE_STATUSES = ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'];
-
-const QUICK_ACTIONS = [
-  { icon: 'person-outline' as const, label: 'Update Profile', desc: 'Keep your information up to date', route: '/(fundi-tabs)/profile' },
-  { icon: 'briefcase-outline' as const, label: 'My Jobs', desc: 'View and manage your job listings', route: '/(fundi-tabs)/nearby-jobs' },
-  { icon: 'wallet-outline' as const, label: 'Earnings', desc: 'Track your income and payments', route: '/(fundi-tabs)/profile' },
-  { icon: 'ellipsis-horizontal' as const, label: 'More', desc: 'Settings, support and more', route: '/(fundi-tabs)/profile' },
-];
 
 const TAGLINES = [
   'Ready for your next job?',
@@ -53,9 +46,13 @@ export default function FundiDashboard() {
     }
   }, [token]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Refetch on every focus so a request answered in the detail screen is gone
+  // from the dashboard as soon as the fundi comes back.
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData]),
+  );
 
   const activeBooking = bookings.find((b: any) => ACTIVE_STATUSES.includes(b.status));
 
@@ -73,31 +70,36 @@ export default function FundiDashboard() {
     return () => stopFundiLocationShare();
   }, [token, activeBooking?.id, activeBooking?._id, activeBooking?.status]);
 
-  const handleAccept = async (bookingId: string) => {
-    if (!token) return;
-    try {
-      await acceptBooking(token, bookingId);
-      Alert.alert('Accepted', 'You have accepted this booking.');
-      fetchData();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to accept booking.');
-    }
-  };
-
-  const handleDecline = async (bookingId: string) => {
-    if (!token) return;
-    try {
-      await declineBooking(token, bookingId);
-      fetchData();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to decline booking.');
-    }
-  };
-
   const displayName = (profile?.name || user?.name || '').trim();
+  const firstName = (profile?.firstName || user?.firstName || displayName.split(' ')[0] || '').trim();
   const nameInitial = displayName.charAt(0).toUpperCase() || 'U';
+  const isOnline = profile?.isOnline === true;
   const pendingBooking = bookings.find((b: any) => b.status === 'PENDING' || b.status === 'pending');
   const tagline = useMemo(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)], []);
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const completedBookings = bookings.filter((b: any) => b.status === 'COMPLETED');
+  const earningsToday = bookings
+    .filter((b: any) => b.status === 'COMPLETED' && b.completedAt && new Date(b.completedAt) >= startOfDay)
+    .reduce((sum: number, b: any) => sum + Number(b.agreedPrice ?? b.proposedPrice ?? 0), 0);
+  // The profile counter is the source of truth; the live list covers rows
+  // finished before the counter existed.
+  const jobsDone = Math.max(Number(profile?.jobsCompleted ?? 0), completedBookings.length);
+  const ratingValue = Number(profile?.rating ?? 0);
+  const ratingText = ratingValue > 0 ? ratingValue.toFixed(1) : '0';
+
+  const setPresence = async (next: boolean) => {
+    if (!token) return;
+    const previous = profile;
+    setProfile((p: any) => (p ? { ...p, isOnline: next } : p));
+    try {
+      await updateProfile(token, { isOnline: next });
+    } catch (e: any) {
+      setProfile(previous);
+      Alert.alert('Could not update', e.message || 'Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -139,39 +141,65 @@ export default function FundiDashboard() {
           <Image source={IMAGES.foreground} style={styles.foregroundBg} resizeMode="contain" />
           <View style={styles.welcomeText}>
             <Text style={styles.helloLabel}>Hello,</Text>
-            <Text style={styles.fundiName}>{displayName || 'there'}</Text>
+            <Text style={styles.fundiName}>{firstName || 'there'}</Text>
             <Text style={styles.profileText}>{tagline}</Text>
           </View>
+        </View>
+
+        {/* Online / Offline */}
+        <View style={styles.onlineCard}>
+          <View style={styles.onlineInfo}>
+            <View style={styles.onlineTitleRow}>
+              <View style={[styles.onlineDot, !isOnline && styles.onlineDotOff]} />
+              <Text style={styles.onlineTitle}>{isOnline ? "You're online" : "You're offline"}</Text>
+            </View>
+            <Text style={styles.onlineSub}>
+              {isOnline
+                ? 'Nearby clients can see you and send booking requests.'
+                : 'Go online to receive booking requests from clients.'}
+            </Text>
+          </View>
+          <Switch
+            value={isOnline}
+            onValueChange={setPresence}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={colors.white}
+            ios_backgroundColor={colors.border}
+            accessibilityLabel="Toggle online status"
+          />
         </View>
 
         {/* Statistics */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <View style={[styles.statIconWrap, { backgroundColor: '#FFF3DD' }]}>
-              <Ionicons name="briefcase-outline" size={15} color={colors.primaryDark} />
-            </View>
-            <Text style={styles.statValue}>{profile?.jobsCompleted ?? bookings.length}</Text>
-            <Text style={styles.statLabel}>Total Jobs</Text>
+            <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.9}>
+              Earnings today
+            </Text>
+            <Text style={styles.statValueAccent} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              UGX {earningsToday.toLocaleString()}
+            </Text>
           </View>
           <View style={styles.statCard}>
-            <View style={[styles.statIconWrap, { backgroundColor: '#FFF8E0' }]}>
-              <Ionicons name="star" size={15} color={colors.star} />
-            </View>
-            <Text style={styles.statValue}>{profile?.rating?.toFixed(1) ?? '0.0'}</Text>
-            <Text style={styles.statLabel}>Rating</Text>
+            <Text style={styles.statLabel} numberOfLines={1}>Jobs done</Text>
+            <Text style={styles.statValue}>{jobsDone}</Text>
           </View>
           <View style={styles.statCard}>
-            <View style={[styles.statIconWrap, { backgroundColor: '#E9F3FF' }]}>
-              <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.blue} />
-            </View>
-            <Text style={styles.statValue}>{profile?.reviewCount ?? 0}</Text>
-            <Text style={styles.statLabel}>Reviews</Text>
+            <Text style={styles.statLabel} numberOfLines={1}>Rating</Text>
+            <Text style={styles.statValue}>{ratingText}</Text>
           </View>
         </View>
 
-        {/* Pending Booking */}
-        {pendingBooking && (
-          <View style={styles.bookingCard}>
+        {/* A live client request takes this slot over from the presence card */}
+        {pendingBooking ? (
+          <Pressable
+            style={styles.bookingCard}
+            onPress={() =>
+              router.push({
+                pathname: '/fundi-job-details',
+                params: { bookingId: String(pendingBooking.id || pendingBooking._id) },
+              })
+            }
+          >
             <View style={styles.bookingHeader}>
               <View style={styles.bookingDot} />
               <Text style={styles.bookingTitle}>New Client Request</Text>
@@ -186,45 +214,30 @@ export default function FundiDashboard() {
               )}
             </View>
             <View style={styles.bookingActions}>
-              <Pressable style={styles.declineBtn} onPress={() => handleDecline(pendingBooking.id)}>
-                <Text style={styles.declineText}>Decline</Text>
-              </Pressable>
-              <Pressable style={styles.acceptBtn} onPress={() => handleAccept(pendingBooking.id)}>
-                <Text style={styles.acceptText}>Accept</Text>
-              </Pressable>
+              <Text style={styles.bookingHint}>Read the full brief before you respond</Text>
+              <View style={styles.bookingCta}>
+                <Text style={styles.bookingCtaText}>View details</Text>
+                <Ionicons name="arrow-forward" size={14} color={colors.white} />
+              </View>
             </View>
+          </Pressable>
+        ) : (
+          <View style={styles.statusCard}>
+            <View style={styles.statusIconCircle}>
+              <Ionicons
+                name={isOnline ? 'radio' : 'radio-outline'}
+                size={34}
+                color={isOnline ? colors.primary : colors.muted}
+              />
+            </View>
+            <Text style={styles.statusTitle}>{isOnline ? "You're online" : "You're offline"}</Text>
+            <Text style={styles.statusSub}>
+              {isOnline
+                ? 'Keep yourself online to receive booking requests from clients.'
+                : 'Go online to receive booking requests from clients.'}
+            </Text>
           </View>
         )}
-
-        {/* Quick Actions */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionAccent} />
-          <View>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <Text style={styles.sectionDesc}>Access key features and manage your account</Text>
-          </View>
-        </View>
-
-        <View style={styles.actionsGrid}>
-          {QUICK_ACTIONS.map((action) => (
-            <Pressable
-              key={action.label}
-              style={styles.actionCard}
-              onPress={() => router.push(action.route as any)}
-            >
-              <View style={styles.actionLeft}>
-                <View style={styles.actionIconWrap}>
-                  <Ionicons name={action.icon} size={20} color={colors.primary} />
-                </View>
-                <View style={styles.actionTextWrap}>
-                  <Text style={styles.actionLabel}>{action.label}</Text>
-                  <Text style={styles.actionDesc}>{action.desc}</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.muted} />
-            </Pressable>
-          ))}
-        </View>
       </ScrollView>
     </View>
   );
@@ -285,33 +298,79 @@ const styles = StyleSheet.create({
     width: 330,
     height: 420,
     zIndex: 0,
-    opacity: 0.4,
+    opacity: 0.8,
   },
 
   /* Stats */
   statsRow: { flexDirection: 'row', gap: spacing.sm },
   statCard: {
     flex: 1,
-    aspectRatio: 1,
     backgroundColor: colors.white,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.sm,
+    padding: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: spacing.xs,
+    minHeight: 84,
     ...shadowSm,
   },
-  statIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  statLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: -0.2,
+    color: colors.inkSoft,
+    textAlign: 'center',
+  },
+  statValue: {
+    fontFamily: fonts.extrabold,
+    fontSize: 20,
+    color: colors.ink,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  statValueAccent: {
+    fontFamily: fonts.extrabold,
+    fontSize: 17,
+    color: colors.primary,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+
+  /* Presence status */
+  statusCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 260,
+    justifyContent: 'center',
+    ...shadowSm,
+  },
+  statusIconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.offWhite,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
-  statValue: { fontFamily: fonts.extrabold, fontSize: 18, color: colors.ink, letterSpacing: -0.5 },
-  statLabel: { fontFamily: fonts.medium, fontSize: 9, color: colors.inkSoft, textAlign: 'center' },
+  statusTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.ink },
+  statusSub: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.muted,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+  },
 
   /* Booking */
   bookingCard: {
@@ -330,55 +389,43 @@ const styles = StyleSheet.create({
   bookingCategory: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
   bookingMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   bookingPrice: { fontFamily: fonts.bold, fontSize: 16, color: colors.primary },
-  bookingActions: { flexDirection: 'row', gap: spacing.md },
-  declineBtn: {
-    flex: 1,
-    height: 42,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  declineText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.inkSoft },
-  acceptBtn: {
-    flex: 1,
-    height: 42,
-    borderRadius: radius.sm,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.white },
-
-  /* Section Header */
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  sectionAccent: { width: 3, height: 28, borderRadius: 2, backgroundColor: colors.primary },
-  sectionTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink },
-  sectionDesc: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
-
-  /* Quick Actions */
-  actionsGrid: { gap: spacing.md },
-  actionCard: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
+  bookingActions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  actionLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, flex: 1 },
-  actionIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primaryFaint,
+  bookingHint: { flex: 1, fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  bookingCta: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    height: 38,
+    borderRadius: radius.pill,
   },
-  actionTextWrap: { flex: 1 },
-  actionLabel: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
-  actionDesc: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  bookingCtaText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.white },
+
+  /* Online / Offline */
+  onlineCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    ...shadowSm,
+  },
+  onlineInfo: { flex: 1, gap: spacing.xs },
+  onlineTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  onlineDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.success },
+  onlineDotOff: { backgroundColor: colors.muted },
+  onlineTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
+  onlineSub: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.muted },
 });

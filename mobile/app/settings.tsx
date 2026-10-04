@@ -8,6 +8,7 @@ import Screen from '../src/components/Screen';
 import { IMAGES } from '../src/assets';
 import { colors, fonts, radius, spacing, shadowSoft } from '../src/theme';
 import { useAuth } from '../src/contexts/AuthContext';
+import { resetWelcome } from '../src/services/welcome';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -39,6 +40,12 @@ export default function SettingsScreen() {
     } catch {
       Alert.alert('Unable to open settings', 'Open your phone settings manually to allow location.');
     }
+  };
+
+  // Onboarding is one-shot per install; this puts it back on demand.
+  const handleReplayIntro = async () => {
+    await resetWelcome();
+    router.replace('/welcome');
   };
 
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
@@ -90,6 +97,13 @@ export default function SettingsScreen() {
             onPress={() => router.push('/terms')}
             icon={<Ionicons name="document-text-outline" size={24} color={colors.primary} />}
             title="Terms & Conditions"
+          />
+          <ProfileRow
+            divider
+            onPress={handleReplayIntro}
+            icon={<Ionicons name="play-circle-outline" size={24} color={colors.primary} />}
+            title="Replay introduction"
+            subtitle="Watch the welcome screens again"
           />
           <ProfileRow
             divider

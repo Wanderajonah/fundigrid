@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 let socket: Socket | null = null;
 
 function apiUrl(): string {
-  const base = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.42.187:5000/api';
+  const base = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.42.156:5000/api';
   return base.replace(/\/api\/?$/, '');
 }
 

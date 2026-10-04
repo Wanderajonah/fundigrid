@@ -93,7 +93,12 @@ export default function JobsScreen() {
                 date={formatDate(b.scheduledFor) || formatDate(b.created_at)}
                 status={statusKey(b.status)}
                 onPress={() =>
-                  router.push({ pathname: '/job-tracking', params: { bookingId: String(b.id) } })
+                  router.push({
+                    // A request that no fundi has taken yet is still with the
+                    // quantity surveyor, so it gets the pre-acceptance tracker.
+                    pathname: b.status === 'PENDING' ? '/request-status' : '/job-tracking',
+                    params: { bookingId: String(b.id) },
+                  })
                 }
               />
             ))

@@ -3,6 +3,7 @@ const router = express.Router();
 const { OAuth2Client } = require("google-auth-library");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { publicUser } = require("../controllers/authController");
 
 const client = new OAuth2Client(process.env.GOOGLE_WEB_CLIENT_ID);
 
@@ -27,8 +28,11 @@ router.post("/google", async (req, res, next) => {
         await getSupabase().from("users").update({ googleId, profilePhoto: picture || "" }).eq("id", user.id);
         user.googleId = googleId;
       } else {
+        // Google gives one display name; store it as first + last.
+        const [firstName, ...rest] = String(name || "").trim().split(/\s+/).filter(Boolean);
         user = await User.create({
-          name: name || "",
+          firstName: firstName || "",
+          lastName: rest.join(" "),
           email,
           googleId,
           profilePhoto: picture || "",
@@ -40,8 +44,7 @@ router.post("/google", async (req, res, next) => {
     }
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "30d" });
-    const { password, ...safeUser } = user;
-    res.json({ success: true, token, user: safeUser });
+    res.json({ success: true, token, user: publicUser(user) });
   } catch (err) {
     next(err);
   }

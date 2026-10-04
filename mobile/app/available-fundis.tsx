@@ -30,7 +30,8 @@ const RADII = [5, 10, 25, 50, 100];
 export default function AvailableFundisScreen() {
   const router = useRouter();
   const { token } = useAuth();
-  const params = useLocalSearchParams<{ category?: string; area?: string }>();
+  const params = useLocalSearchParams<{ category?: string; area?: string; bookingId?: string }>();
+  const bookingId = params.bookingId ? String(params.bookingId) : '';
   const [radiusIdx, setRadiusIdx] = useState(1);
   const radius = RADII[radiusIdx];
   const [query, setQuery] = useState('');
@@ -141,7 +142,11 @@ export default function AvailableFundisScreen() {
     load();
   }, [load]);
 
-  const openFundi = (id: string) => router.push({ pathname: '/fundi-profile', params: { id } });
+  const openFundi = (id: string) =>
+    router.push({
+      pathname: '/fundi-profile',
+      params: { id, ...(bookingId ? { bookingId } : {}) },
+    });
 
   const term = query.trim().toLowerCase();
   const visible = useMemo(() => {

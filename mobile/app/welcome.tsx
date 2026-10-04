@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   ImageSourcePropType,
+  ImageStyle,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -16,16 +17,16 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PrimaryButton from '../src/components/PrimaryButton';
 import { IMAGES } from '../src/assets';
+import { markWelcomeSeen } from '../src/services/welcome';
 import { colors, fonts, spacing } from '../src/theme';
-
-type Feature = { icon: keyof typeof Ionicons.glyphMap; label: string };
 
 type Slide = {
   id: string;
   title: string;
   body: string;
   image: ImageSourcePropType;
-  features: Feature[];
+  /** Smaller artwork box (still seated on the Skip row), e.g. '90%'. */
+  mediaHeight?: `${number}%`;
   cta: string | null;
   showSkip: boolean;
 };
@@ -35,12 +36,8 @@ const SLIDES: Slide[] = [
     id: 'fundi',
     title: 'Get More Jobs,\nGrow Your Business',
     body: 'FundiGrid connects skilled artisans with customers who need reliable and professional services.',
-    image: IMAGES.welcome1,
-    features: [
-      { icon: 'location-outline', label: 'Find nearby Jobs' },
-      { icon: 'cash-outline', label: 'Get fair\n pay' },
-      { icon: 'star-outline', label: 'Grow your reputation' },
-    ],
+    image: IMAGES.onboarding1,
+    mediaHeight: '80%',
     cta: null,
     showSkip: true,
   },
@@ -48,12 +45,7 @@ const SLIDES: Slide[] = [
     id: 'client',
     title: 'Find Skilled Artisans\nNear You',
     body: 'Get trusted, verified and experienced fundis for all your home and business needs.',
-    image: IMAGES.welcome2,
-    features: [
-      { icon: 'shield-checkmark-outline', label: 'Verified\nFundis' },
-      { icon: 'star-outline', label: 'Real\nReviews' },
-      { icon: 'lock-closed-outline', label: 'Secure\nPayments' },
-    ],
+    image: IMAGES.onboarding2,
     cta: null,
     showSkip: true,
   },
@@ -61,12 +53,7 @@ const SLIDES: Slide[] = [
     id: 'community',
     title: 'Crafting Stronger Communities',
     body: 'Connecting people, skills and opportunities for a better tomorrow.',
-    image: IMAGES.welcome3,
-    features: [
-      { icon: 'people-outline', label: 'Skilled\nArtisans' },
-      { icon: 'location-outline', label: 'Local\nService' },
-      { icon: 'shield-checkmark-outline', label: 'Trusted\n& Verified' },
-    ],
+    image: IMAGES.onboarding3,
     cta: 'Get Started',
     showSkip: false,
   },
@@ -78,7 +65,8 @@ export default function WelcomeScreen() {
   const [index, setIndex] = useState(0);
   const [listHeight, setListHeight] = useState(0);
 
-  const proceed = () => {
+  const proceed = async () => {
+    await markWelcomeSeen();
     router.push('/location');
   };
 
@@ -86,13 +74,20 @@ export default function WelcomeScreen() {
     setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
   };
 
-  const renderFeatureBadge = (feature: Feature) => (
-    <View style={styles.badge}>
-      <Ionicons name={feature.icon} size={20} color={colors.primary} />
-    </View>
-  );
-
   const renderSlide = ({ item }: { item: Slide }) => {
+    // Slides without a CTA give up the button gap so the artwork fills the
+    // media box down to just above the Skip row (cover crops the overflow).
+    // mediaHeight shrinks the box without moving its bottom edge up.
+    const fillToSkip = !item.cta;
+    const mediaBox: ImageStyle = !fillToSkip
+      ? styles.mediaFull
+      : {
+          width: '100%',
+          height: item.mediaHeight ?? '100%',
+          // Shrunk artwork gets breathing room above the Skip row.
+          marginBottom: item.mediaHeight ? spacing.lg : 0,
+        };
+
     return (
       <View style={[styles.slide, { width, height: listHeight || undefined }]}>
         <Image source={IMAGES.logoLight} style={styles.logo} resizeMode="contain" />
@@ -100,17 +95,8 @@ export default function WelcomeScreen() {
         <Text style={styles.h1}>{item.title}</Text>
         <Text style={styles.sub}>{item.body}</Text>
 
-        <View style={styles.mediaBleed}>
-          <Image source={item.image} style={styles.mediaFull} resizeMode="contain" />
-        </View>
-
-        <View style={styles.featureRow}>
-          {item.features.map((f) => (
-            <View key={f.label} style={styles.featureCell}>
-              {renderFeatureBadge(f)}
-              <Text style={styles.featureCellText}>{f.label}</Text>
-            </View>
-          ))}
+        <View style={[styles.mediaBleed, fillToSkip && styles.mediaBleedSeated]}>
+          <Image source={item.image} style={mediaBox} resizeMode={fillToSkip ? 'cover' : 'contain'} />
         </View>
 
         {item.cta ? (
@@ -120,9 +106,7 @@ export default function WelcomeScreen() {
             trailingIcon={<Ionicons name="arrow-forward" size={18} color={colors.black} />}
             style={{ marginTop: spacing.xs }}
           />
-        ) : (
-          <View style={styles.ctaSpacer} />
-        )}
+        ) : null}
 
         {item.showSkip ? (
           <Pressable onPress={() => proceed()} hitSlop={10} style={styles.skipWrap}>
@@ -187,35 +171,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  mediaBleedSeated: { justifyContent: 'flex-end' },
   mediaFull: { width: '100%', height: '100%' },
-  badge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-    gap: spacing.md,
-    zIndex: 1,
-  },
-  featureCell: { width: '28%', alignItems: 'center', gap: 4 },
-  featureCellText: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 15,
-    color: colors.ink,
-    textAlign: 'center',
-  },
-  ctaSpacer: { height: 50, marginTop: spacing.xs },
   skipWrap: { height: 36, alignItems: 'center', justifyContent: 'center' },
   skip: { fontFamily: fonts.medium, fontSize: 15, color: colors.inkSoft },
   footer: {

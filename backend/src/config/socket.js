@@ -5,6 +5,7 @@ const FundiProfile = require("../models/FundiProfile");
 const Booking = require("../models/Booking");
 const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
+const { fullName } = require("../controllers/authController");
 
 function initializeSocket(httpServer) {
   const io = require("socket.io")(httpServer, {
@@ -99,7 +100,7 @@ function initializeSocket(httpServer) {
               description: booking.description,
               address: booking.address,
               location: booking.location,
-              clientName: booking.clientId?.name || "",
+              clientName: fullName(booking.clientId),
               clientPhone: booking.clientId?.phone || "",
               expiresAt: booking.expiresAt,
               timeLeft: Math.max(0, Math.floor(timeLeft / 1000))
@@ -202,7 +203,7 @@ function initializeSocket(httpServer) {
         const { notifyClient } = require("../services/notificationService");
         await notifyClient(booking.clientId, "booking_accepted", {
           bookingId: booking.id,
-          fundiName: fundi.name,
+          fundiName: fullName(fundi),
           fundiPhone: fundi.phone
         });
         
@@ -372,7 +373,7 @@ function initializeSocket(httpServer) {
           return;
         }
         const senderUser = (await User.findById(socket.userId)) || null;
-        const populated = { ...stored, senderId: senderUser ? { id: senderUser.id, name: senderUser.name, role: senderUser.role } : stored.senderId };
+        const populated = { ...stored, senderId: senderUser ? { id: senderUser.id, name: fullName(senderUser), role: senderUser.role } : stored.senderId };
 
         // Emit to all participants in the conversation room
         io.to(`conversation:${conversationId}`).emit("new_message", {
@@ -395,7 +396,7 @@ function initializeSocket(httpServer) {
           if (!inRoom) {
             await notifyNewMessage(recipientId, {
               senderId: socket.userId,
-              senderName: senderUser?.name || "New message",
+              senderName: fullName(senderUser) || "New message",
               conversationId,
               text,
               imageUrl,

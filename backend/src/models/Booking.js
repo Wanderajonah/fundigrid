@@ -42,6 +42,14 @@ class Booking extends Model {
     escrowReleasedAt: null,
     escrowAmount: null,
     clientFee: 0,
+    // Quantity-surveyor stage. NULL = written before the stage existed, which
+    // surveyService reads as "estimate already ready".
+    surveyorId: null,
+    surveyorName: "",
+    surveyStatus: null,
+    assignedAt: null,
+    estimateSubmittedAt: null,
+    estimateBy: null,
   };
 }
 

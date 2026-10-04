@@ -9,7 +9,7 @@ import RatingStars from '../src/components/RatingStars';
 import { AppMap, DEFAULT_REGION, MapPin, MapRegion, formatKm, haversineKm, regionFromPoints } from '../src/maps';
 import { getCurrentLocation } from '../src/services/location';
 import { connectSocket } from '../src/services/socket';
-import { getClientBookings, getFundiById } from '../src/services/api';
+import { confirmCompletion, getClientBookings, getFundiById } from '../src/services/api';
 import { useAuth } from '../src/contexts/AuthContext';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,6 +70,7 @@ export default function JobTrackingScreen() {
   const [fundiLoc, setFundiLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [clientLoc, setClientLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [region, setRegion] = useState<MapRegion>(DEFAULT_REGION);
+  const [confirming, setConfirming] = useState(false);
 
   const loadBooking = useCallback(async () => {
     if (!token) return;
@@ -195,6 +196,7 @@ export default function JobTrackingScreen() {
   const isCancelled = status === 'CANCELLED' || status === 'DISPUTED';
   const isCompleted = status === 'COMPLETED';
   const isPaid = booking?.paymentStatus === 'held' || booking?.paymentStatus === 'released';
+  const awaitingSignoff = status === 'IN_PROGRESS' && Boolean(booking?.fundiCompleted);
 
   const callFundi = async () => {
     const phone = String(fundi?.phone || '').trim();
@@ -210,6 +212,32 @@ export default function JobTrackingScreen() {
   };
 
   const openMessages = () => router.push('/(tabs)/messages');
+
+  // Nothing is completed until the client says so — this is their only step.
+  const confirmDone = () => {
+    if (!token || !booking) return;
+    Alert.alert(
+      'Confirm the job is done?',
+      'This tells FundiGrid the work is finished and releases payment to the fundi.',
+      [
+        { text: 'Not yet', style: 'cancel' },
+        {
+          text: 'Confirm done',
+          onPress: async () => {
+            setConfirming(true);
+            try {
+              await confirmCompletion(token, String(booking.id || bookingId || ''));
+              await loadBooking();
+            } catch (e: any) {
+              Alert.alert('Could not confirm', e?.message || 'Please try again.');
+            } finally {
+              setConfirming(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const scheduled = booking?.scheduledFor ? new Date(booking.scheduledFor) : null;
   const scheduledLabel = scheduled && !Number.isNaN(scheduled.getTime())
@@ -236,7 +264,9 @@ export default function JobTrackingScreen() {
         <AppMap region={region} pins={pins} showsUserLocation style={styles.map} />
         <View style={[styles.statusChip, { backgroundColor: toneStyle.bg }]}>
           <Ionicons name={toneStyle.icon as any} size={14} color={toneStyle.fg} />
-          <Text style={[styles.statusChipText, { color: toneStyle.fg }]}>{meta.title}</Text>
+          <Text style={[styles.statusChipText, { color: toneStyle.fg }]}>
+            {awaitingSignoff ? 'Waiting for your confirmation' : meta.title}
+          </Text>
         </View>
         {etaMin != null && (
           <View style={styles.etaChip}>
@@ -332,6 +362,19 @@ export default function JobTrackingScreen() {
           <Text style={styles.cardTitle}>Progress</Text>
           <Timeline steps={stepsFor(status)} />
         </View>
+
+        {awaitingSignoff && (
+          <View style={styles.signoffCard}>
+            <View style={styles.signoffHead}>
+              <Ionicons name="checkmark-done" size={18} color={colors.success} />
+              <Text style={styles.signoffTitle}>The fundi says the work is finished</Text>
+            </View>
+            <Text style={styles.signoffText}>
+              Check everything is right, then confirm. Payment is released to the fundi once you do.
+            </Text>
+            <PrimaryButton title="Confirm job is done" onPress={confirmDone} loading={confirming} />
+          </View>
+        )}
 
         {!booking && <Text style={styles.hint}>Loading your booking…</Text>}
         {isPending && <Text style={styles.hint}>We’ll notify you the moment the fundi accepts.</Text>}
@@ -482,6 +525,17 @@ const styles = StyleSheet.create({
   },
   detailLabel: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, width: 78 },
   detailValue: { flex: 1, fontFamily: fonts.medium, fontSize: 13, color: colors.ink, textAlign: 'right' },
+  signoffCard: {
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.success,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  signoffHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  signoffTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink, flex: 1 },
+  signoffText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.inkSoft },
   timelineCard: {
     backgroundColor: colors.lightBg,
     borderRadius: radius.lg,

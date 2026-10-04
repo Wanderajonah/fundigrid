@@ -5,6 +5,8 @@ import { disconnectSocket } from '../services/socket';
 type User = {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   phone: string;
   role: string;
@@ -26,7 +28,7 @@ type AuthContextType = {
   token: string | null;
   loading: boolean;
   signIn: (phone: string, code: string) => Promise<{ requireRoleSelection?: boolean; user?: User }>;
-  signUp: (phone: string, code: string, name: string, role: string) => Promise<void>;
+  signUp: (phone: string, code: string, role: string) => Promise<void>;
   signOut: () => void;
   refreshUser: () => Promise<void>;
 };
@@ -65,8 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { requireRoleSelection: data.requireRoleSelection, user: data.user };
   };
 
-  const signUp = async (phone: string, code: string, name: string, role: string) => {
-    const data = await api.verifyOtpRegister(phone, code, name, role);
+  const signUp = async (phone: string, code: string, role: string) => {
+    const data = await api.verifyOtpRegister(phone, code, role);
     setToken(data.token);
     setUser(data.user);
   };

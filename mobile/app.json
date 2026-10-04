@@ -34,8 +34,12 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
       ],
       "config": {
         "googleMaps": {
@@ -61,6 +65,13 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "FundiGrid uses your location to find nearby fundis and show live job tracking on the map."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FundiGrid needs your photos so you can upload your ID, certificate and job pictures.",
+          "cameraPermission": "FundiGrid uses the camera so you can photograph your ID and work documents."
         }
       ],
       [

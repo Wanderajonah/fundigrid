@@ -79,7 +79,12 @@ export default function JobCompletedScreen() {
           onPress={() =>
             router.push({
               pathname: '/review',
-              params: { fundiName: fundiName || '', trade: fundiTrade || '', rating: rating || '' },
+              params: {
+                fundiName: fundiName || '',
+                trade: fundiTrade || '',
+                rating: rating || '',
+                bookingId: jobId || '',
+              },
             })
           }
         />

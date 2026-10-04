@@ -19,15 +19,18 @@ export const CATEGORIES: Category[] = [
   { key: 'electrical', label: 'Electrical', image: IMAGES.electrical },
   { key: 'carpentry', label: 'Carpentry', image: IMAGES.carpentry },
   { key: 'masonry', label: 'Masonry', image: IMAGES.masonry },
-  { key: 'tailoring', label: 'Tailoring', image: IMAGES.tailoring },
   { key: 'mechanics', label: 'Mechanics', image: IMAGES.mechanics },
   { key: 'other', label: 'Other', image: undefined },
 ];
 
 export const CATEGORY_LABELS: string[] = CATEGORIES.map((c) => c.label);
 
-/** "Other" is only meaningful as an onboarding answer, never as a request. */
-export const REQUESTABLE_CATEGORIES: Category[] = CATEGORIES.filter((c) => c.key !== 'other');
+/**
+ * Categories a client can pick on a request. "Other" is the catch-all for a
+ * custom job: it is offered in the request form and as the home "Others" tile,
+ * but fundis do not need it as a skill to be shown for it.
+ */
+export const REQUESTABLE_CATEGORIES: Category[] = CATEGORIES;
 
 const BY_KEY = new Map(CATEGORIES.map((c) => [c.key, c]));
 const BY_LABEL = new Map(CATEGORIES.map((c) => [c.label.toLowerCase(), c]));
@@ -55,4 +58,13 @@ export function categoryImage(value?: string | null): number | undefined {
 /** Form value -> the label stored in the db. */
 export function toCategoryLabel(key?: string | null): string | undefined {
   return BY_KEY.get(String(key || '').trim())?.label;
+}
+
+/**
+ * True when a value is one of the canonical labels ("painting" -> true).
+ * Anything else is a client-typed trade, which no fundi lists as a skill.
+ */
+export function isKnownCategory(value?: string | null): boolean {
+  const v = String(value || '').trim().toLowerCase();
+  return !!v && BY_LABEL.has(v);
 }

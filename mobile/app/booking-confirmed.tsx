@@ -34,9 +34,10 @@ export default function BookingConfirmedScreen() {
         <View style={styles.iconWrap}>
           <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
         </View>
-        <Text style={styles.h1}>Booking Sent!</Text>
+        <Text style={styles.h1}>Request Sent!</Text>
         <Text style={styles.sub}>
-          {category} request sent to {fundiName}. You will see it move once they accept.
+          Your {category} request is with a quantity surveyor now. They price the job before any fundi
+          sees it — track every step below.
         </Text>
 
         <View style={styles.card}>
@@ -58,7 +59,7 @@ export default function BookingConfirmedScreen() {
           </View>
           {estimateTotal > 0 ? (
             <View style={styles.row}>
-              <Text style={styles.label}>Estimate</Text>
+              <Text style={styles.label}>Estimate (indicative)</Text>
               <Text style={styles.value}>UGX {estimateTotal.toLocaleString()}</Text>
             </View>
           ) : null}
@@ -66,12 +67,12 @@ export default function BookingConfirmedScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton
-          title="Track Job"
-          onPress={() =>
-            router.push({ pathname: '/job-tracking', params: bookingId ? { bookingId } : {} })
-          }
-        />
+        {bookingId ? (
+          <PrimaryButton
+            title="Track Request"
+            onPress={() => router.push({ pathname: '/request-status', params: { bookingId } })}
+          />
+        ) : null}
         <PrimaryButton title="View Details" variant="secondary" onPress={() => router.push('/(tabs)/jobs')} />
       </View>
     </SafeAreaView>

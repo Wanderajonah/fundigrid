@@ -3,7 +3,8 @@ const { Model } = require("../db/shim");
 class User extends Model {
   static _table = "users";
   static _defaults = {
-    name: "",
+    firstName: "",
+    lastName: "",
     gender: "",
     email: null,
     phone: null,
@@ -33,6 +34,7 @@ class User extends Model {
     availableEndTime: "",
     serviceRadius: 10,
     verificationDocs: [],
+    referees: [],
   };
 }
 

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import Avatar from '../src/components/Avatar';
 import PrimaryButton from '../src/components/PrimaryButton';
 import InputField from '../src/components/InputField';
@@ -18,18 +19,55 @@ export default function ProfileSetupScreen() {
   const { role, phone, mode } = useLocalSearchParams<{ role?: string; phone?: string; mode?: string }>();
   const isEdit = mode === 'edit';
   const { user, token, refreshUser } = useAuth();
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [gender, setGender] = useState('');
   const [location, setLocation] = useState('');
   const [place, setPlace] = useState<ResolvedLocation | null>(null);
   const [locating, setLocating] = useState(true);
   const [locationDenied, setLocationDenied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [photoSaving, setPhotoSaving] = useState(false);
+
+  // Camera badge on the avatar: pick a photo, store it as a data URL like the
+  // fundi portfolio does, and refresh so the new picture shows immediately.
+  const changePhoto = async () => {
+    if (!token || photoSaving) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to upload a profile picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets?.[0];
+    if (!asset?.base64) {
+      Alert.alert('Could not read that photo', 'Try a different image.');
+      return;
+    }
+    setPhotoSaving(true);
+    try {
+      await updateProfile(token, { profilePhoto: `data:image/jpeg;base64,${asset.base64}` });
+      await refreshUser();
+    } catch (e: any) {
+      Alert.alert('Could not save photo', e?.message || 'Please try again.');
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
 
   // Editing starts from the record already on file — never from a blank form.
   useEffect(() => {
     if (!isEdit || !user) return;
-    setFullName(user.name || '');
+    const legacy = String(user.name || '').trim();
+    setFirstName(user.firstName || legacy.split(' ')[0] || '');
+    setLastName(user.lastName || legacy.split(' ').slice(1).join(' ') || '');
     setGender(user.gender || '');
     setLocation(user.locationLabel || '');
   }, [isEdit, user]);
@@ -62,8 +100,8 @@ export default function ProfileSetupScreen() {
   }, [captureLocation, isEdit]);
 
   const handleNext = async () => {
-    if (!fullName.trim()) {
-      Alert.alert('Required', 'Please enter your full name.');
+    if (!firstName.trim()) {
+      Alert.alert('Required', 'Please enter your first name.');
       return;
     }
     if (!token) {
@@ -73,7 +111,8 @@ export default function ProfileSetupScreen() {
     setLoading(true);
     try {
       await updateProfile(token, {
-        name: fullName.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         gender,
         locationLabel: location.trim(),
       });
@@ -122,14 +161,25 @@ export default function ProfileSetupScreen() {
         </Text>
 
         <View style={styles.avatarWrap}>
-          <Avatar showBadge />
+          <Avatar
+            source={user?.profilePhoto ? { uri: user.profilePhoto } : IMAGES.profileIcon}
+            showBadge={!photoSaving}
+            onPress={changePhoto}
+          />
+          {photoSaving && <ActivityIndicator size="small" color={colors.primary} style={styles.photoSaving} />}
         </View>
 
         <InputField
-          label="Full Name"
-          placeholder="Enter your full name"
-          value={fullName}
-          onChangeText={setFullName}
+          label="First Name"
+          placeholder="Enter first name"
+          value={firstName}
+          onChangeText={setFirstName}
+        />
+        <InputField
+          label="Second Name"
+          placeholder="Enter second name"
+          value={lastName}
+          onChangeText={setLastName}
         />
         <SelectField
           label="Gender"
@@ -139,13 +189,22 @@ export default function ProfileSetupScreen() {
           placeholder="Select Gender"
         />
         <View>
-          <InputField
-            label="Location"
-            placeholder={locating ? 'Finding your location…' : 'Enter your location'}
-            value={location}
-            onChangeText={setLocation}
-            icon={<Ionicons name="location-outline" size={18} color={colors.primary} />}
-          />
+          {/* The address comes from GPS only — it stays as captured until the
+              person asks for a fresh fix, so typing is disabled. */}
+          <Pressable
+            onPress={() => { if (!locating) captureLocation(); }}
+            accessibilityLabel="Update location from GPS"
+          >
+            <View pointerEvents="none">
+              <InputField
+                label="Location"
+                placeholder={locating ? 'Finding your location…' : 'Waiting for GPS'}
+                value={location}
+                editable={false}
+                icon={<Ionicons name="location-outline" size={18} color={colors.primary} />}
+              />
+            </View>
+          </Pressable>
           <View style={styles.gpsRow}>
             {locating ? (
               <ActivityIndicator size="small" color={colors.primary} />
@@ -165,7 +224,7 @@ export default function ProfileSetupScreen() {
               {locating
                 ? 'Reading your GPS…'
                 : locationDenied
-                  ? 'Location access is off — type your area instead'
+                  ? 'Location access is off — turn it on in system settings, then tap the button'
                   : place
                     ? 'Captured from your GPS'
                     : isEdit
@@ -196,8 +255,9 @@ const styles = StyleSheet.create({
   h1: { fontFamily: fonts.bold, fontSize: 24, color: colors.ink },
   sub: { fontFamily: fonts.regular, fontSize: 14, color: colors.inkSoft },
   avatarWrap: { alignItems: 'center', paddingVertical: spacing.lg },
+  photoSaving: { marginTop: spacing.sm },
   footer: { paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxxl },
-  gpsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: -spacing.xs, paddingLeft: spacing.xs },
+  gpsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm, paddingLeft: spacing.xs },
   gpsBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   gpsText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.primary },
   gpsHint: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, flexShrink: 1 },

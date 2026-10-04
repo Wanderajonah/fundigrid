@@ -40,7 +40,7 @@ export function setCachedUser(user: SessionUser | null) {
   else localStorage.removeItem(USER_KEY);
 }
 
-export type Role = 'customer' | 'fundi';
+export type Role = 'customer' | 'fundi' | 'admin' | 'surveyor';
 
 export interface SessionUser {
   id: string;
@@ -119,6 +119,10 @@ export interface Booking {
   arrivedAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  fundiCompleted?: boolean | null;
+  fundiCompletedAt?: string | null;
+  clientCompleted?: boolean | null;
+  clientCompletedAt?: string | null;
 }
 
 interface RequestOptions {
@@ -281,6 +285,14 @@ export function declineBooking(bookingId: string) {
 
 export type FundiBookingStatus = 'ON_THE_WAY' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED';
 
+// The client has the last word — a job is not COMPLETED until they confirm it.
+export function confirmCompletion(bookingId: string) {
+  return request<{ success: boolean; booking: Booking }>('/bookings/client/confirm-completion', {
+    method: 'POST',
+    body: { bookingId },
+  });
+}
+
 export function updateBookingStatus(bookingId: string, status: FundiBookingStatus) {
   return request<{ success: boolean }>('/bookings/fundi/status', {
     method: 'PUT',
@@ -311,4 +323,264 @@ export function getWallet() {
 
 export function getTransactions() {
   return request<{ success: boolean; transactions: Transaction[] }>('/wallet/transactions');
+}
+
+// ── Admin: quantity surveyor stage ──
+
+export type SurveyStage = 'AWAITING_ASSIGNMENT' | 'SURVEYOR_ASSIGNED' | 'ESTIMATE_READY';
+
+export interface AdminSurveyor {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+  email?: string | null;
+  status?: string;
+  district?: string;
+  locationLabel?: string;
+  experience?: number;
+}
+
+export interface AdminRequest {
+  id: string;
+  clientId?: string;
+  clientName?: string;
+  clientPhone?: string;
+  category?: string;
+  description?: string;
+  address?: string;
+  images?: string[];
+  status?: string;
+  scheduledFor?: string | null;
+  created_at?: string;
+  surveyStatus?: SurveyStage | null;
+  surveyorId?: string | null;
+  surveyorName?: string | null;
+  assignedAt?: string | null;
+  estimateSubmittedAt?: string | null;
+  estimateBy?: string | null;
+  estimate?: {
+    labour?: number;
+    materials?: number;
+    serviceFee?: number;
+    total?: number;
+    currency?: string;
+    source?: string;
+    notes?: string;
+  } | null;
+}
+
+export interface EstimateInput {
+  labour: number;
+  materials: number;
+  serviceFee?: number;
+  notes?: string;
+}
+
+export function getAdminSurveyors() {
+  return request<{ success: boolean; surveyors: AdminSurveyor[] }>('/admin/surveyors');
+}
+
+export function getAdminRequests() {
+  return request<{ success: boolean; requests: AdminRequest[] }>('/admin/requests');
+}
+
+export function getAdminRequest(id: string) {
+  return request<{ success: boolean; booking: AdminRequest; stage?: SurveyStage }>(
+    `/admin/requests/${encodeURIComponent(id)}`,
+  );
+}
+
+export function assignAdminSurveyor(id: string, surveyorId: string) {
+  return request<{ success: boolean }>(`/admin/requests/${encodeURIComponent(id)}/assign-surveyor`, {
+    method: 'POST',
+    body: { surveyorId },
+  });
+}
+
+export function submitAdminEstimate(id: string, input: EstimateInput) {
+  return request<{ success: boolean; estimate: NonNullable<AdminRequest['estimate']> }>(
+    `/admin/requests/${encodeURIComponent(id)}/estimate`,
+    { method: 'POST', body: input },
+  );
+}
+
+// A surveyor's own desk: only the requests assigned to them.
+export function getMySurveyRequests() {
+  return request<{ success: boolean; requests: AdminRequest[] }>('/surveyor/requests');
+}
+
+// ── Admin: users, fundis, bookings and platform numbers ──
+
+export type PlatformRole = 'Client' | 'Fundi' | 'Surveyor' | 'Admin';
+export type RawRole = 'customer' | 'fundi' | 'surveyor' | 'admin';
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  role: PlatformRole;
+  rawRole: RawRole;
+  phone: string;
+  email: string;
+  location: string;
+  skills: string[];
+  createdAt: string | null;
+  status: 'Active' | 'Inactive';
+}
+
+export interface CreateUserInput {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+  role: RawRole;
+  skills?: string;
+  district?: string;
+}
+
+export interface AdminFundi {
+  id: string;
+  name: string;
+  trade: string;
+  skills: string[];
+  location: string;
+  rating: number;
+  reviews: number;
+  status: 'Active' | 'Pending' | 'Suspended';
+  phone: string;
+  email: string;
+  createdAt: string | null;
+  experience: number;
+  completedJobs: number;
+  availability: string;
+  about: string;
+  verified: boolean;
+}
+
+export interface AdminBooking {
+  id: string;
+  category: string;
+  clientId: string;
+  client: string;
+  fundiId: string;
+  fundi: string;
+  address: string;
+  amount: number;
+  status: 'Pending' | 'Accepted' | 'In Progress' | 'Completed' | 'Cancelled';
+  surveyStatus: SurveyStage;
+  createdAt: string | null;
+}
+
+export interface AdminStats {
+  users: {
+    total: number;
+    clients: number;
+    fundis: number;
+    surveyors: number;
+    admins: number;
+    active: number;
+    activeFundis: number;
+    pendingFundis: number;
+  };
+  requests: {
+    total: number;
+    awaiting: number;
+    assigned: number;
+    ready: number;
+    completed: number;
+    cancelled: number;
+    active: number;
+    byService: { label: string; value: number }[];
+  };
+  bookings: {
+    total: number;
+    active: number;
+    completed: number;
+    cancelled: number;
+    completedValue: number;
+  };
+}
+
+export interface SettingsToggle {
+  key: string;
+  on: boolean;
+}
+
+export interface PlatformSettingsValues {
+  adminName: string;
+  adminEmail: string;
+  commissionRate: number;
+  clientFeeRate: number;
+  minJobAmount: number;
+  serviceRadius: number;
+  autoApprovalFundis: string;
+  disputeResolution: string;
+  notifications: SettingsToggle[];
+  paymentIntegrations: { currency?: string; settlementAccount?: string };
+  currency: string;
+}
+
+export function getAdminUsers() {
+  return request<{ success: boolean; users: AdminUser[] }>('/admin/users');
+}
+
+export function createAdminUser(input: CreateUserInput) {
+  return request<{ success: boolean; user: AdminUser }>('/admin/users', { method: 'POST', body: input });
+}
+
+export function updateAdminUser(id: string, patch: { status: 'active' | 'inactive' }) {
+  return request<{ success: boolean; user: AdminUser }>(`/admin/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: patch,
+  });
+}
+
+export function deleteAdminUser(id: string) {
+  return request<{ success: boolean; id: string }>(`/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function getAdminFundis() {
+  return request<{ success: boolean; fundis: AdminFundi[] }>('/admin/fundis');
+}
+
+export function updateAdminFundi(id: string, patch: { status: 'active' | 'inactive' }) {
+  return request<{ success: boolean; fundi: AdminFundi }>(`/admin/fundis/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: patch,
+  });
+}
+
+export function getAdminBookings() {
+  return request<{ success: boolean; bookings: AdminBooking[] }>('/admin/bookings');
+}
+
+export function getAdminStats() {
+  return request<{ success: boolean; stats: AdminStats }>('/admin/stats');
+}
+
+export function getPlatformSettings() {
+  return request<PlatformSettingsValues>('/platform-settings');
+}
+
+// Numbers arrive as form strings; the API coerces them.
+export interface PlatformSettingsPatch {
+  adminName?: string;
+  adminEmail?: string;
+  commissionRate?: string | number;
+  clientFeeRate?: string | number;
+  minJobAmount?: string | number;
+  serviceRadius?: string | number;
+  autoApprovalFundis?: string;
+  disputeResolution?: string;
+  notifications?: SettingsToggle[];
+  paymentIntegrations?: { currency?: string; settlementAccount?: string };
+}
+
+export function savePlatformSettings(patch: PlatformSettingsPatch) {
+  return request<{ success: boolean; settings: PlatformSettingsValues }>('/admin/platform-settings', {
+    method: 'PUT',
+    body: patch,
+  });
 }

@@ -77,9 +77,16 @@ export default function FundiJobDetailPage() {
 
   const meta = statusMeta(booking.status);
   const flowIndex = FLOW.indexOf(booking.status);
-  const nextStep = booking.status === 'ACCEPTED' ? NEXT[0] : NEXT.find(n => FLOW.indexOf(n.status) === flowIndex + 1);
+  // Once the work is reported finished the next step belongs to the client.
+  const workFinished = Boolean(booking.fundiCompleted);
+  const nextStep = workFinished
+    ? undefined
+    : booking.status === 'ACCEPTED'
+      ? NEXT[0]
+      : NEXT.find(n => FLOW.indexOf(n.status) === flowIndex + 1);
   const isPending = booking.status === 'PENDING';
   const isFinished = booking.status === 'COMPLETED' || booking.status === 'CANCELLED' || booking.status === 'DISPUTED';
+  const awaitingClient = workFinished && booking.status === 'IN_PROGRESS';
 
   const details = [
     { icon: MapPin, label: 'Area', value: booking.address || 'Not shared' },
@@ -152,6 +159,13 @@ export default function FundiJobDetailPage() {
           >
             {busy ? 'Updating…' : nextStep.label}
           </button>
+        )}
+
+        {awaitingClient && (
+          <div>
+            <p className="text-sm font-semibold text-gray-900 mb-1">Work reported finished</p>
+            <p className="text-sm text-gray-500">Waiting for the client to confirm the job is done.</p>
+          </div>
         )}
 
         {isFinished && <p className="text-sm text-gray-500">This request is closed.</p>}

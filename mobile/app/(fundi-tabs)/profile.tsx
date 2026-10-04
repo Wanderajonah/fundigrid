@@ -1,29 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { IMAGES } from '../../src/assets';
-import { colors, fonts, radius, spacing } from '../../src/theme';
+import Constants from 'expo-constants';
+import ProfileRow from '../../src/components/ProfileRow';
+import PrimaryButton from '../../src/components/PrimaryButton';
+import Screen from '../../src/components/Screen';
 import VerifiedBadge from '../../src/components/VerifiedBadge';
 import RatingStars from '../../src/components/RatingStars';
+import { colors, fonts, radius, shadowSoft, spacing } from '../../src/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { updateProfile } from '../../src/services/api';
-
-const MENU_ITEMS = [
-  { icon: 'person-outline' as const, label: 'Edit Profile' },
-  { icon: 'wallet-outline' as const, label: 'Earnings' },
-  { icon: 'briefcase-outline' as const, label: 'My Jobs' },
-  { icon: 'notifications-outline' as const, label: 'Notifications' },
-  { icon: 'help-circle-outline' as const, label: 'Help & Support' },
-  { icon: 'log-out-outline' as const, label: 'Log Out', danger: true },
-];
 
 const MAX_PHOTOS = 6;
 
 export default function FundiProfileScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token, signOut, refreshUser } = useAuth();
   const [savingWork, setSavingWork] = useState(false);
@@ -32,6 +24,8 @@ export default function FundiProfileScreen() {
     refreshUser();
   }, [refreshUser]);
 
+  // Details come from the account stored against this phone number. Only fall
+  // back to the number itself if the profile was never completed.
   const displayName = user?.name?.trim() || user?.phone || 'Fundi account';
   const initials = displayName
     .split(' ')
@@ -39,6 +33,7 @@ export default function FundiProfileScreen() {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const trades = user?.skills?.join(' • ') || 'No trades set';
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -111,14 +106,16 @@ export default function FundiProfileScreen() {
     ]);
   };
 
+  const editProfile = () => router.push({ pathname: '/profile-setup', params: { mode: 'edit' } });
+
   return (
-    <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Image source={IMAGES.logoLight} style={styles.logo} resizeMode="contain" />
+    <Screen bg={colors.white} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.h1}>Profile</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileCard}>
+      <ScrollView contentContainerStyle={styles.body}>
+        <Pressable onPress={editProfile} style={({ pressed }) => [styles.userCard, pressed && { opacity: 0.7 }]}>
           {user?.profilePhoto ? (
             <Image source={{ uri: user.profilePhoto }} style={styles.avatar} resizeMode="cover" />
           ) : (
@@ -126,20 +123,26 @@ export default function FundiProfileScreen() {
               <Text style={styles.avatarFallbackText}>{initials}</Text>
             </View>
           )}
-          <Text style={styles.name}>{displayName}</Text>
-          <VerifiedBadge />
-          <RatingStars rating={user?.rating || 0} showCount count={user?.reviewCount || 0} />
-          <Text style={styles.trade}>{user?.skills?.join(' • ') || 'No trades set'}</Text>
+          <View style={styles.info}>
+            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{displayName}</Text>
+            {user?.phone ? (
+              <Text style={styles.phone}>+{user.phone.slice(0, 3)} {user.phone.slice(3, 6)} {user.phone.slice(6)}</Text>
+            ) : null}
+            <Text style={styles.role}>{user?.role === 'fundi' ? 'Fundi' : 'Client'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+        </Pressable>
+
+        <View style={styles.statsCard}>
+          <View style={styles.statsTop}>
+            <RatingStars rating={user?.rating || 0} showCount count={user?.reviewCount || 0} />
+            <VerifiedBadge />
+          </View>
+          <Text style={styles.trades}>{trades}</Text>
         </View>
 
         <View style={styles.workCard}>
-          <View style={styles.workHeader}>
-            <Text style={styles.workTitle}>My previous work</Text>
-            <Pressable style={styles.workAddBtn} onPress={addWorkPhotos} disabled={savingWork} hitSlop={8}>
-              <Ionicons name="add" size={15} color={colors.ink} />
-              <Text style={styles.workAddLabel}>{savingWork ? 'Saving…' : 'Add photos'}</Text>
-            </Pressable>
-          </View>
+          <Text style={styles.workTitle}>My previous work</Text>
           <Text style={styles.workHint}>
             Clients book you faster when they can see finished jobs. Up to {MAX_PHOTOS} photos.
           </Text>
@@ -159,65 +162,121 @@ export default function FundiProfileScreen() {
                 disabled={savingWork}
               >
                 <Ionicons name="camera-outline" size={22} color={colors.primary} />
-                <Text style={styles.workTileText}>Add</Text>
+                <Text style={styles.workTileText}>{savingWork ? 'Saving…' : 'Add'}</Text>
               </Pressable>
             )}
           </View>
-          {portfolio.length === 0 && <Text style={styles.workEmpty}>No photos yet — add a few of your best jobs.</Text>}
         </View>
 
-        <View style={styles.menu}>
-          {MENU_ITEMS.map((item) => (
-            <Pressable key={item.label} style={styles.menuItem} onPress={item.danger ? handleLogout : undefined}>
-              <View style={styles.menuLeft}>
-                <Ionicons name={item.icon} size={20} color={item.danger ? colors.danger : colors.inkSoft} />
-                <Text style={[styles.menuLabel, item.danger && { color: colors.danger }]}>{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-            </Pressable>
-          ))}
+        <View style={styles.group}>
+          <ProfileRow
+            divider={false}
+            onPress={editProfile}
+            icon={<Ionicons name="person-outline" size={24} color={colors.primary} />}
+            title="Edit Profile"
+          />
+          <ProfileRow
+            divider
+            onPress={() => router.push('/(fundi-tabs)/nearby-jobs')}
+            icon={<Ionicons name="briefcase-outline" size={24} color={colors.primary} />}
+            title="My Jobs"
+          />
+          <ProfileRow
+            divider
+            icon={<Ionicons name="wallet-outline" size={24} color={colors.primary} />}
+            title="Earnings"
+          />
+          <ProfileRow
+            divider
+            icon={<Ionicons name="notifications-outline" size={24} color={colors.primary} />}
+            title="Notifications"
+          />
+          <ProfileRow
+            divider
+            onPress={() => router.push('/support')}
+            icon={<Ionicons name="help-circle-outline" size={24} color={colors.primary} />}
+            title="Help & Support"
+          />
+          <ProfileRow
+            onPress={() => router.push('/settings')}
+            icon={<Ionicons name="settings-outline" size={24} color={colors.primary} />}
+            title="Settings"
+          />
+        </View>
+
+        <View style={styles.logoutWrap}>
+          <PrimaryButton
+            variant="danger"
+            title="Log Out"
+            onPress={handleLogout}
+            icon={<Ionicons name="log-out-outline" size={18} color={colors.danger} />}
+          />
+          <Text style={styles.version}>Version {Constants.expoConfig?.version ?? '1.0.0'}</Text>
         </View>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.white },
-  header: {
-    backgroundColor: colors.white,
+  header: { paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl },
+  h1: { fontFamily: fonts.bold, fontSize: 28, lineHeight: 36, color: colors.ink },
+  body: { paddingHorizontal: spacing.xxl, paddingTop: spacing.xl, paddingBottom: spacing.xxxxl, gap: spacing.lg },
+  userCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xxl,
-    paddingBottom: spacing.lg,
-  },
-  logo: { width: 80, height: 48 },
-  content: { paddingHorizontal: spacing.xxl, paddingTop: spacing.xl, paddingBottom: spacing.xxxxl, gap: spacing.xl },
-  profileCard: {
-    backgroundColor: colors.white,
+    gap: spacing.lg,
+    padding: spacing.lg,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.sm,
+    backgroundColor: colors.white,
+    ...shadowSoft,
   },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.lightBg },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
-  avatarFallbackText: { fontFamily: fonts.bold, fontSize: 24, color: colors.primary },
-  name: { fontFamily: fonts.bold, fontSize: 18, color: colors.ink },
-  trade: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center' },
+  avatarFallbackText: { fontFamily: fonts.bold, fontSize: 20, color: colors.primary },
+  info: { flex: 1, gap: 2 },
+  name: { fontFamily: fonts.bold, fontSize: 20, lineHeight: 26, color: colors.ink },
+  phone: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.inkSoft },
+  role: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted },
+  statsCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.xs,
+    ...shadowSoft,
+  },
+  statsTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  trades: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.inkSoft },
+  group: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.lg,
+    ...shadowSoft,
+  },
   workCard: {
-    backgroundColor: colors.white,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.xl,
-    gap: spacing.sm,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    ...shadowSoft,
   },
-  workHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   workTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
-  workAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  workAddLabel: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
   workHint: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, lineHeight: 17 },
   workGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
   workThumbWrap: { position: 'relative' },
@@ -244,23 +303,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.white,
   },
-  workEmpty: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: spacing.xs },
-  menu: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  menuLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  logoutWrap: { gap: spacing.md, paddingTop: spacing.sm },
+  version: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, textAlign: 'center' },
 });

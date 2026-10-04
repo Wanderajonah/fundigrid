@@ -7,7 +7,7 @@ import { IMAGES } from '../src/assets';
 import { categoryImage } from '../src/data/categories';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { useAuth } from '../src/contexts/AuthContext';
-import { acceptBooking, declineBooking, getFundiBookingById } from '../src/services/api';
+import { acceptBooking, declineBooking, getFundiBookingById, updateBookingStatus } from '../src/services/api';
 import StatusBadge from '../src/components/StatusBadge';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -66,9 +66,8 @@ export default function FundiJobDetailsScreen() {
     setActionLoading(true);
     try {
       await acceptBooking(token, String(bookingId));
-      Alert.alert('Accepted', 'You have accepted this booking.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      // Accepted jobs open straight into the navigation map.
+      router.replace({ pathname: '/fundi-navigation', params: { bookingId: String(bookingId) } });
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to accept.');
     } finally {
@@ -91,9 +90,35 @@ export default function FundiJobDetailsScreen() {
     }
   };
 
+  const handleAdvance = async (next: string) => {
+    if (!token || !bookingId) return;
+    setActionLoading(true);
+    try {
+      await updateBookingStatus(token, String(bookingId), next);
+      await load();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not update this job.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const category = booking?.category || 'Job Request';
   const status = booking?.status || 'PENDING';
   const isPending = status === 'PENDING';
+  // Closed jobs must outrank the "waiting for the client" note, otherwise a
+  // client-confirmed completion still reads as pending on the fundi's side.
+  const isClosed = status === 'COMPLETED' || status === 'CANCELLED' || status === 'DISPUTED';
+  // The client confirms completion, so the fundi's last action is reporting
+  // the work finished — nothing after that belongs to them.
+  const workFinished = Boolean(booking?.fundiCompleted);
+  const STEPS = [
+    { from: 'ACCEPTED', next: 'ON_THE_WAY', label: 'Start travelling' },
+    { from: 'ON_THE_WAY', next: 'ARRIVED', label: "I've arrived" },
+    { from: 'ARRIVED', next: 'IN_PROGRESS', label: 'Start work' },
+    { from: 'IN_PROGRESS', next: 'COMPLETED', label: 'Mark work complete' },
+  ];
+  const nextStep = STEPS.find(s => s.from === status);
 
   return (
     <View style={styles.root}>
@@ -148,28 +173,29 @@ export default function FundiJobDetailsScreen() {
               </Text>
             </View>
 
-            <View style={styles.infoGrid}>
-              <View style={styles.infoBox}>
-                <View style={styles.infoIcon}>
-                  <Ionicons name="time" size={16} color={colors.primary} />
+            <View style={styles.detailCard}>
+              {[
+                { icon: 'calendar-outline', label: 'Scheduled', value: formatDate(booking.scheduledFor) || 'ASAP' },
+                {
+                  icon: 'hourglass-outline',
+                  label: 'Est. time',
+                  value: `${Math.round(Number(booking.estimatedDuration || 60))} min`,
+                },
+                { icon: 'location-outline', label: 'Location', value: booking.address || 'Kampala' },
+              ].map((row, i, arr) => (
+                <View
+                  key={row.label}
+                  style={[styles.detailRow, i < arr.length - 1 && styles.detailRowDivider]}
+                >
+                  <View style={styles.detailIcon}>
+                    <Ionicons name={row.icon as any} size={16} color={colors.primary} />
+                  </View>
+                  <Text style={styles.detailLabel}>{row.label}</Text>
+                  <Text style={styles.detailValue} numberOfLines={2}>
+                    {row.value}
+                  </Text>
                 </View>
-                <Text style={styles.infoValue}>{formatDate(booking.scheduledFor) || 'ASAP'}</Text>
-                <Text style={styles.infoLabel}>Scheduled</Text>
-              </View>
-              <View style={styles.infoBox}>
-                <View style={styles.infoIcon}>
-                  <Ionicons name="hourglass" size={16} color={colors.primary} />
-                </View>
-                <Text style={styles.infoValue}>{Math.round(Number(booking.estimatedDuration || 60))} min</Text>
-                <Text style={styles.infoLabel}>Est. Time</Text>
-              </View>
-              <View style={styles.infoBox}>
-                <View style={styles.infoIcon}>
-                  <Ionicons name="location" size={16} color={colors.primary} />
-                </View>
-                <Text style={styles.infoValue}>{booking.address || 'Kampala'}</Text>
-                <Text style={styles.infoLabel}>Location</Text>
-              </View>
+              ))}
             </View>
 
             <View style={styles.card}>
@@ -201,6 +227,30 @@ export default function FundiJobDetailsScreen() {
                   <Text style={styles.declineText}>Decline</Text>
                 </Pressable>
               </>
+            ) : isClosed ? (
+              <View style={styles.statusRow}>
+                <Ionicons
+                  name={status === 'COMPLETED' ? 'checkmark-done' : 'close-circle'}
+                  size={18}
+                  color={status === 'COMPLETED' ? colors.success : colors.danger}
+                />
+                <Text style={styles.statusText}>
+                  {status === 'COMPLETED'
+                    ? 'Job completed — the client confirmed it'
+                    : status === 'CANCELLED'
+                      ? 'This job was cancelled'
+                      : 'This job is under dispute'}
+                </Text>
+              </View>
+            ) : workFinished ? (
+              <View style={styles.statusRow}>
+                <Ionicons name="checkmark-done" size={18} color={colors.primary} />
+                <Text style={styles.statusText}>Work reported finished — waiting for the client to confirm</Text>
+              </View>
+            ) : nextStep ? (
+              <Pressable style={styles.acceptBtn} onPress={() => handleAdvance(nextStep.next)} disabled={actionLoading}>
+                <Text style={styles.acceptText}>{actionLoading ? 'Updating…' : nextStep.label}</Text>
+              </Pressable>
             ) : (
               <View style={styles.statusRow}>
                 <Text style={styles.statusText}>Status: {STATUS_LABELS[status] || status}</Text>
@@ -245,27 +295,25 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   jobTitle: { fontFamily: fonts.bold, fontSize: 22, color: colors.ink, flex: 1 },
   subtitle: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
-  infoGrid: { flexDirection: 'row', gap: spacing.md },
-  infoBox: {
-    flex: 1,
+  detailCard: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
-    alignItems: 'center',
-    gap: 6,
+    paddingHorizontal: spacing.md,
   },
-  infoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primarySoft,
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
+  detailRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  detailIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoValue: { fontFamily: fonts.bold, fontSize: 13, color: colors.ink, textAlign: 'center' },
-  infoLabel: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted },
+  detailLabel: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.muted, width: 78 },
+  detailValue: { flex: 1, fontFamily: fonts.medium, fontSize: 13.5, color: colors.ink, textAlign: 'right' },
   card: {
     backgroundColor: colors.lightBg,
     borderRadius: radius.md,
@@ -281,7 +329,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  statusRow: { height: 52, borderRadius: radius.md, backgroundColor: colors.lightBg, alignItems: 'center', justifyContent: 'center' },
+  statusRow: {
+    minHeight: 52,
+    borderRadius: radius.md,
+    backgroundColor: colors.lightBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
   statusText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
   acceptBtn: {
     height: 52,

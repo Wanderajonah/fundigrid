@@ -10,11 +10,28 @@ const signToken = (user) => {
   });
 };
 
+// The database keeps first and last name apart; most screens still render a
+// single line, so everything user-facing goes through this helper.
+function fullName(user) {
+  if (!user) return "";
+  return `${user.firstName || ""} ${user.lastName || ""}`.trim();
+}
+
+// One account per number, whatever shape it was typed in: 0772…, +256 772…
+// and 256772… must all resolve to the same row.
+function normalisePhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("256")) return digits;
+  if (digits.startsWith("0")) return `256${digits.slice(1)}`;
+  if (digits.length === 9) return `256${digits}`;
+  return digits;
+}
+
 // Never hand the password hash back to the client.
 function publicUser(user) {
   if (!user) return null;
   const { password, ...rest } = user;
-  return rest;
+  return { ...rest, name: fullName(rest) };
 }
 
 // Fundis carry a second row (fundiprofiles) with the rating/verification data
@@ -41,16 +58,20 @@ async function sessionPayload(user) {
 // A phone number owns exactly one account. Registration writes the person's
 // details against that number so a later login returns them instead of a
 // generic shell account.
-async function ensureAccount({ phone, name, email, password, role }) {
+async function ensureAccount({ phone, firstName, lastName, email, password, role }) {
+  phone = normalisePhone(phone);
   const requestedRole = role === "fundi" ? "fundi" : "customer";
   let user = await User.findOne({ phone });
 
   if (user) {
     const patch = {};
-    const blankName = !String(user.name || "").trim();
+    const blankName = !fullName(user);
     // Only fill gaps — an in-progress profile is never overwritten by the
     // empty values a fresh signup form submits.
-    if (name && blankName) patch.name = String(name).trim();
+    if (firstName && blankName) {
+      patch.firstName = String(firstName).trim();
+      patch.lastName = String(lastName || "").trim();
+    }
     if (email && !user.email) patch.email = email;
     if (!user.onboardingComplete && requestedRole !== user.role) patch.role = requestedRole;
 
@@ -59,7 +80,8 @@ async function ensureAccount({ phone, name, email, password, role }) {
     }
   } else {
     user = await User.create({
-      name: String(name || "").trim(),
+      firstName: String(firstName || "").trim(),
+      lastName: String(lastName || "").trim(),
       phone,
       email: email || null,
       password: password ? await bcrypt.hash(password, 10) : "",
@@ -78,7 +100,7 @@ async function ensureAccount({ phone, name, email, password, role }) {
 
 const sendOtpController = async (req, res, next) => {
   try {
-    const { phone } = req.body;
+    const phone = normalisePhone(req.body.phone);
     if (!phone) return res.status(400).json({ success: false, message: "Phone is required" });
     const purpose = req.body.purpose || "register";
     if (purpose === "login") {
@@ -99,7 +121,8 @@ const sendOtpController = async (req, res, next) => {
 
 const verifyRegister = async (req, res, next) => {
   try {
-    const { phone, code, name, email, password, role } = req.body;
+    const phone = normalisePhone(req.body.phone);
+    const { code, firstName, lastName, email, password, role } = req.body;
     if (!phone || !code) {
       return res.status(400).json({ success: false, message: "Phone and code are required" });
     }
@@ -109,7 +132,7 @@ const verifyRegister = async (req, res, next) => {
       return res.status(400).json({ success: false, message: otpResult.message });
     }
 
-    const user = await ensureAccount({ phone, name, email, password, role });
+    const user = await ensureAccount({ phone, firstName, lastName, email, password, role });
     res.json(await sessionPayload(user));
   } catch (err) {
     next(err);
@@ -118,7 +141,8 @@ const verifyRegister = async (req, res, next) => {
 
 const verifyLogin = async (req, res, next) => {
   try {
-    const { phone, code } = req.body;
+    const phone = normalisePhone(req.body.phone);
+    const { code } = req.body;
     if (!phone || !code) {
       return res.status(400).json({ success: false, message: "Phone and code are required" });
     }
@@ -139,4 +163,4 @@ const verifyLogin = async (req, res, next) => {
   }
 };
 
-module.exports = { sendOtp: sendOtpController, verifyRegister, verifyLogin, profileExtras, publicUser };
+module.exports = { sendOtp: sendOtpController, verifyRegister, verifyLogin, profileExtras, publicUser, fullName, normalisePhone };

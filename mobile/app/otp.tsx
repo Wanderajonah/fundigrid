@@ -57,6 +57,8 @@ export default function OtpScreen() {
     }
     setCode(next);
     if (typed.length && last < 3) refs.current[last + 1]?.focus();
+    // The 4th digit verifies itself — nobody should hunt for the button.
+    if (next.every((d) => d !== '')) handleVerify(next.join(''));
   };
 
   const handleKeyPress = (i: number, e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
@@ -67,23 +69,25 @@ export default function OtpScreen() {
     refs.current[i - 1]?.focus();
   };
 
-  const handleVerify = async () => {
-    const otpCode = code.join('');
+  const handleVerify = async (otpOverride?: string) => {
+    const otpCode = otpOverride ?? code.join('');
     if (otpCode.length < 4) {
       Alert.alert('Invalid code', 'Please enter the full 4-digit code.');
       return;
     }
+    if (loading) return;
     setLoading(true);
     try {
       const isRegister = purpose === 'register';
+      let signedIn;
       if (isRegister) {
-        await signUp(phone ?? '', otpCode, '', role ?? 'fundi');
+        await signUp(phone ?? '', otpCode, role ?? 'fundi');
       } else {
-        const result = await signIn(phone ?? '', otpCode);
+        signedIn = await signIn(phone ?? '', otpCode);
         // An account can exist before its owner ever filled in their details
         // (registered by number only, or created on an older build). Never
         // drop them on the tabs with an empty name — finish setup first.
-        if (!result.user?.name?.trim()) {
+        if (!signedIn.user?.name?.trim()) {
           router.replace({ pathname: '/profile-setup', params: { role, phone } });
           return;
         }
@@ -91,7 +95,10 @@ export default function OtpScreen() {
       if (isRegister) {
         router.replace({ pathname: '/profile-setup', params: { role, phone } });
       } else {
-        router.replace(role === 'fundi' ? '/(fundi-tabs)' : '/(tabs)');
+        // Returning users skip role selection, so trust the account's own
+        // role over the role param (which defaults to 'client').
+        const landingRole = signedIn?.user?.role || role || 'client';
+        router.replace(landingRole === 'fundi' ? '/(fundi-tabs)' : '/(tabs)');
       }
     } catch (e: any) {
       Alert.alert('Verification failed', e.message || 'Invalid OTP. Please try again.');
@@ -147,7 +154,7 @@ export default function OtpScreen() {
         </Pressable>
 
         <View style={styles.bottom}>
-          <PrimaryButton title="Verify" onPress={handleVerify} loading={loading} />
+          <PrimaryButton title="Verify" onPress={() => handleVerify()} loading={loading} />
           <Pressable onPress={() => router.back()} style={styles.change}>
             <Text style={styles.changeText}>Change number</Text>
           </Pressable>

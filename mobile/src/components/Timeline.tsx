@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, radius, spacing } from '../theme';
 
 type Props = {
-  steps: { label: string; status: 'completed' | 'current' | 'pending' }[];
+  steps: { label: string; status: 'completed' | 'current' | 'pending'; hint?: string }[];
 };
 
 export default function Timeline({ steps }: Props) {
@@ -27,6 +27,7 @@ export default function Timeline({ steps }: Props) {
               <Text style={[styles.label, isCompleted && styles.labelCompleted, isCurrent && styles.labelCurrent]}>
                 {step.label}
               </Text>
+              {step.hint ? <Text style={styles.hint}>{step.hint}</Text> : null}
             </View>
           </View>
         );
@@ -59,4 +60,5 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted },
   labelCompleted: { color: colors.ink, fontFamily: fonts.medium },
   labelCurrent: { color: colors.primary, fontFamily: fonts.semibold },
+  hint: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
 });

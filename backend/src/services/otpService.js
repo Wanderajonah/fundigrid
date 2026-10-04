@@ -25,27 +25,28 @@ const sendOtp = async (phone, purpose = "register") => {
     await Otp.create({ phone, purpose, codeHash, expiresAt, attempts: 0, lastSentAt: new Date().toISOString() });
   }
 
-  // Real SMS as soon as eGoSMS credentials exist. The code is only returned
-  // to the caller while the provider is missing (or failed in dev mode) so
-  // nobody can read OTPs from API responses in production.
+  // Dev mode prints the OTP to this terminal instead of sending an SMS.
+  // Keep COMMS_DEV_MODE=false in production: the code is returned to the
+  // caller in dev mode so nobody can read OTPs from API responses there.
   const devMode = process.env.COMMS_DEV_MODE === "true";
+
+  if (devMode) {
+    console.log("\n─────────────────────────────────────────────");
+    console.log(`  [DEV OTP] ${phone} (${purpose})`);
+    console.log(`  Code: ${code}   (valid ${OTP_EXPIRY_MINUTES} min)`);
+    console.log("─────────────────────────────────────────────\n");
+    return { success: true, code, devMode: true };
+  }
+
   const message = `Your FundiGrid verification code is: ${code}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`;
 
   if (isConfigured()) {
     const sent = await sendSms(phone, message);
     if (sent.success) return { success: true, sent: true };
     console.error(`[otp] SMS to ${phone} failed: ${sent.message}`);
-    if (devMode) {
-      console.log(`[DEV] OTP for ${phone} (${purpose}): ${code}`);
-      return { success: true, code, devMode: true };
-    }
     return { success: false, message: "Could not send the verification SMS. Please try again." };
   }
 
-  if (devMode) {
-    console.log(`[DEV] OTP for ${phone} (${purpose}): ${code}`);
-    return { success: true, code, devMode: true };
-  }
   return { success: false, message: "SMS provider is not configured." };
 };
 

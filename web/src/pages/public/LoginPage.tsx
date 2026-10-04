@@ -5,7 +5,7 @@ import FundiGridLogo from '../../components/FundiGridLogo';
 import { ApiError, type Role } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
-const HOME: Record<Role, string> = { customer: '/client', fundi: '/fundi' };
+const HOME: Record<Role, string> = { customer: '/client', fundi: '/fundi', admin: '/admin', surveyor: '/surveyor' };
 
 export default function LoginPage() {
   const navigate = useNavigate();

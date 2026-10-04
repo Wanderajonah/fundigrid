@@ -19,6 +19,19 @@ export async function ensureLocationPermission(): Promise<boolean> {
   }
 }
 
+// Non-prompting check for launch routing: location must be switched on at the
+// OS level and already granted, otherwise the app shows the enable screen.
+export async function isLocationAvailable(): Promise<boolean> {
+  try {
+    const servicesOn = await Location.hasServicesEnabledAsync();
+    if (!servicesOn) return false;
+    const { status } = await Location.getForegroundPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 export async function getCachedLocation(): Promise<DeviceLocation | null> {
   try {
     const raw = await AsyncStorage.getItem(CACHED_KEY);
@@ -79,13 +92,23 @@ export type ResolvedLocation = {
 // Native reverse geocoding is the fastest path, but on Android it needs a
 // Google Maps API key. Fall back to OpenStreetMap, then to raw coordinates,
 // so the caller always gets something readable to show.
+// The app only serves Uganda for now, and the country suffix is what made
+// labels too long for the single-line location field — drop it and keep the
+// locality/region only.
+function labelFrom(locality?: string | null, region?: string | null, country?: string | null): string {
+  const parts = [locality, region].filter(Boolean) as string[];
+  const isUganda = String(country || '').trim().toLowerCase() === 'uganda';
+  if (country && !isUganda) parts.push(country);
+  return parts.join(', ');
+}
+
 async function reverseGeocode(latitude: number, longitude: number): Promise<string> {
   try {
     const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
     if (place) {
       const locality = place.district || place.subregion || place.city || place.name;
-      const parts = [locality, place.region, place.country].filter(Boolean);
-      if (parts.length) return parts.join(', ');
+      const label = labelFrom(locality, place.region, place.country);
+      if (label) return label;
     }
   } catch {
     // no Google key configured on Android — try the network fallback below
@@ -100,8 +123,8 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<stri
       const data = await res.json();
       const a = data?.address || {};
       const locality = a.suburb || a.village || a.town || a.city_district || a.city || a.county;
-      const parts = [locality, a.state, a.country].filter(Boolean);
-      if (parts.length) return parts.join(', ');
+      const label = labelFrom(locality, a.state, a.country);
+      if (label) return label;
     }
   } catch {
     // offline or rate-limited — fall through to coordinates
@@ -111,7 +134,8 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<stri
 }
 
 // Reads the device GPS fix and turns it into a human-readable place label.
-// Returns null when permission was denied so the UI can offer a manual entry.
+// Returns null when permission was denied so the UI can explain why GPS
+// could not pick the address.
 export async function resolveCurrentLocation(): Promise<ResolvedLocation | null> {
   const granted = await ensureLocationPermission();
   if (!granted) return null;

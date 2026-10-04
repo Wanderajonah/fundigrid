@@ -9,16 +9,29 @@ import InputField from '../src/components/InputField';
 import SelectField from '../src/components/SelectField';
 import CalendarField from '../src/components/CalendarField';
 import { IMAGES } from '../src/assets';
-import { REQUESTABLE_CATEGORIES, CATEGORY_LABELS } from '../src/data/categories';
+import { CATEGORY_LABELS } from '../src/data/categories';
 import { setRequestDraft } from '../src/services/requestDraft';
-import { resolveCurrentLocation } from '../src/services/location';
+import { resolveCurrentLocation, getCurrentLocation } from '../src/services/location';
+import { createBooking } from '../src/services/api';
+import { useAuth } from '../src/contexts/AuthContext';
+import { DEFAULT_REGION } from '../src/maps/config';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const MAX_PHOTOS = 3;
 
+// CalendarField hands back "YYYY-MM-DD"; the surveyor only needs the day, so
+// we book the default morning slot and the client can pick a time later.
+function dateToScheduled(date: string): string | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+  if (!m) return undefined;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 9, 0, 0);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
 export default function RequestJobScreen() {
   const router = useRouter();
+  const { token } = useAuth();
   const { service } = useLocalSearchParams<{ service?: string }>();
   const [serviceType, setServiceType] = useState(service ?? '');
   const [description, setDescription] = useState('');
@@ -27,6 +40,13 @@ export default function RequestJobScreen() {
   const [locating, setLocating] = useState(true);
   const [date, setDate] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [customCategory, setCustomCategory] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // "Other" means the client names the trade themselves, so the category sent
+  // to the directory and stored on the booking is whatever they type.
+  const isCustomService = serviceType === 'Other';
+  const category = isCustomService ? customCategory.trim() : serviceType;
 
   // The address is read from the device GPS so nobody has to type it.
   const locate = useCallback(async () => {
@@ -63,20 +83,62 @@ export default function RequestJobScreen() {
     setPhotos((prev) => Array.from(new Set([...prev, ...uris])).slice(0, MAX_PHOTOS));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!serviceType) {
       Alert.alert('Choose a service', 'Pick the type of work you need done.');
       return;
     }
-    // One place collects the details; the booking screen pre-fills from here.
-    setRequestDraft({ photos, service: serviceType, description, location, date });
-    // GPS labels look like "Nakawa, Kampala, Uganda" — the first part is the
-    // locality the area filter can match against a fundi's district.
-    const area = location.split(',')[0].trim();
-    router.push({
-      pathname: '/available-fundis',
-      params: { category: serviceType, area },
-    });
+    if (isCustomService && !category) {
+      Alert.alert('Name your service', 'Type the kind of work you need done.');
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert('Describe the job', 'Add a short description so the surveyor can price it.');
+      return;
+    }
+    if (!location.trim()) {
+      Alert.alert(
+        'Location needed',
+        'Turn on location access and tap the refresh icon to pick your job location.',
+      );
+      return;
+    }
+    if (!token) {
+      Alert.alert('Sign in required', 'Please sign in to send a request.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const device = await getCurrentLocation();
+      const coords = device
+        ? { lat: device.latitude, lng: device.longitude }
+        : { lat: DEFAULT_REGION.latitude, lng: DEFAULT_REGION.longitude };
+      const scheduledFor = dateToScheduled(date);
+
+      // One place collects the details; the confirm screen pre-fills from here.
+      setRequestDraft({ photos, service: category, description, location, date });
+
+      // Sent to the quantity surveyor first — no fundi sees it yet.
+      const data = await createBooking(token, {
+        category,
+        description: description.trim(),
+        address: location.trim(),
+        location: coords,
+        ...(photos.length ? { images: photos } : {}),
+        ...(scheduledFor ? { scheduledFor } : {}),
+      });
+
+      const booking = data?.booking;
+      router.replace({
+        pathname: '/request-status',
+        params: { bookingId: booking?.id ? String(booking.id) : '' },
+      });
+    } catch (e: any) {
+      Alert.alert('Request failed', e?.message || 'Could not send your request. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -95,9 +157,22 @@ export default function RequestJobScreen() {
           label="Service Type"
           value={serviceType}
           onChange={setServiceType}
-          options={CATEGORY_LABELS.filter((l) => REQUESTABLE_CATEGORIES.some((c) => c.label === l))}
+          options={CATEGORY_LABELS}
           placeholder="Select service"
+          helper={isCustomService ? 'Pick Other, then name the service below.' : undefined}
         />
+        {isCustomService ? (
+          <InputField
+            label="Service Category"
+            value={customCategory}
+            onChangeText={setCustomCategory}
+            placeholder="e.g. Painting, gardening, welding"
+            autoCapitalize="words"
+            autoCorrect={false}
+            returnKeyType="next"
+            helper="We use this to describe your job to fundis."
+          />
+        ) : null}
         <TextArea
           label="Job Description"
           placeholder="Describe the work needed..."
@@ -162,14 +237,21 @@ export default function RequestJobScreen() {
               size={18}
               color={gpsAddress ? colors.primary : colors.muted}
             />
-            <TextInput
-              style={styles.gpsInput}
-              value={location}
-              onChangeText={setLocation}
-              placeholder={locating ? 'Reading GPS…' : 'Type an address if location is off'}
-              placeholderTextColor={colors.muted}
-              multiline
-            />
+            {/* GPS-only field: it holds whatever the last fix returned and can
+                be refreshed from the icon (or by tapping the text) but never
+                typed into. */}
+            <Pressable style={styles.gpsInputWrap} onPress={() => { if (!locating) locate(); }}>
+              <View pointerEvents="none">
+                <TextInput
+                  style={styles.gpsInput}
+                  value={location}
+                  editable={false}
+                  placeholder={locating ? 'Reading GPS…' : 'Waiting for GPS'}
+                  placeholderTextColor={colors.muted}
+                  multiline
+                />
+              </View>
+            </Pressable>
             <Pressable onPress={locate} hitSlop={10} style={styles.gpsRefresh} accessibilityLabel="Refresh GPS location">
               <Ionicons name="refresh" size={18} color={locating ? colors.muted : colors.primary} />
             </Pressable>
@@ -179,14 +261,17 @@ export default function RequestJobScreen() {
               ? 'Getting your location from GPS…'
               : gpsAddress
                 ? `Picked from GPS · ${gpsAddress}`
-                : 'Location access is off — allow it or type the address.'}
+                : 'Location access is off — allow it in settings, then tap the refresh icon.'}
           </Text>
         </View>
         <CalendarField label="Preferred Date" value={date} onChange={setDate} />
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton title="Find Fundis" onPress={handleSubmit} />
+        <PrimaryButton title="Submit Request" loading={submitting} onPress={handleSubmit} />
+        <Text style={styles.footerNote}>
+          A quantity surveyor prices your job first — you pick a fundi once the estimate is ready.
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -214,6 +299,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
+  gpsInputWrap: { flex: 1, justifyContent: 'flex-start' },
   gpsInput: {
     flex: 1,
     fontFamily: fonts.regular,
@@ -266,5 +352,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footer: { paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxxl },
+  footer: { paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxxl, gap: spacing.sm },
+  footerNote: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.muted, textAlign: 'center' },
 });

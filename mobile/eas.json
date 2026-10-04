@@ -14,7 +14,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.42.80:5000/api",
+        "EXPO_PUBLIC_API_URL": "https://fundigrid.onrender.com/api",
         "EXPO_PUBLIC_MAP_PROVIDER": "maplibre"
       }
     },

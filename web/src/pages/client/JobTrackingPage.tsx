@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Clock, MapPin } from 'lucide-react';
-import { getClientBookings, type Booking } from '../../lib/api';
+import { confirmCompletion, getClientBookings, type Booking } from '../../lib/api';
 import { bookingTitle, statusMeta } from '../../lib/booking';
 
 function formatStamp(value?: string | null) {
@@ -19,6 +19,8 @@ export default function JobTrackingPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -77,6 +79,25 @@ export default function JobTrackingPage() {
   const doneCount = steps.filter(s => s.done).length;
   const isCancelled = booking.status === 'CANCELLED' || booking.status === 'DISPUTED';
   const place = booking.address || 'Location not shared';
+  // The fundi reports the work finished; the client signs off before it is COMPLETED.
+  const awaitingSignoff = booking.status === 'IN_PROGRESS' && Boolean(booking.fundiCompleted);
+
+  async function confirmDone() {
+    if (confirming) return;
+    const ok = window.confirm('Confirm the job is done? This releases payment to the fundi.');
+    if (!ok) return;
+    setConfirming(true);
+    setConfirmError('');
+    try {
+      await confirmCompletion(booking!.id);
+      const res = await getClientBookings();
+      setBookings(res.bookings || []);
+    } catch (err) {
+      setConfirmError(err instanceof Error ? err.message : 'Could not confirm completion');
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   return (
     <div className="max-w-[900px] mx-auto">
@@ -141,6 +162,27 @@ export default function JobTrackingPage() {
           </div>
         </div>
       </div>
+      {confirmError && <p className="text-sm text-red-500 mt-6">{confirmError}</p>}
+
+      {awaitingSignoff && (
+        <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 flex items-start gap-4">
+          <CheckCircle size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-gray-900">The fundi says the work is finished</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Check everything is right, then confirm. Payment is released to the fundi once you do.
+            </p>
+          </div>
+          <button
+            onClick={confirmDone}
+            disabled={confirming}
+            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold text-sm rounded-full transition-all"
+          >
+            {confirming ? 'Confirming…' : 'Confirm job is done'}
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }

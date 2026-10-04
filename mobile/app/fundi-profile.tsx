@@ -53,7 +53,7 @@ function formatDate(iso?: string) {
 export default function FundiProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, bookingId } = useLocalSearchParams<{ id?: string; bookingId?: string }>();
   const { token } = useAuth();
 
   const [fundi, setFundi] = useState<Fundi | null>(null);
@@ -130,6 +130,7 @@ export default function FundiProfileScreen() {
         name: fundi.name,
         trade,
         rating: String(fundi.rating ?? 0),
+        ...(bookingId ? { bookingId } : {}),
       },
     });
   };

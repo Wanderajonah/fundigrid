@@ -4,7 +4,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import PrimaryButton from '../src/components/PrimaryButton';
 import Chip from '../src/components/Chip';
-import InputField from '../src/components/InputField';
+import TimePickerField from '../src/components/TimePickerField';
 import SectionHeader from '../src/components/SectionHeader';
 import { IMAGES } from '../src/assets';
 import { colors, fonts, radius, spacing } from '../src/theme';
@@ -72,21 +72,9 @@ export default function AvailabilityScreen() {
 
         <Text style={styles.label}>Available Time</Text>
         <View style={styles.timeRow}>
-          <InputField
-            style={styles.timeInput}
-            value={startTime}
-            onChangeText={setStartTime}
-            placeholder="08:00"
-            keyboardType="numbers-and-punctuation"
-          />
+          <TimePickerField value={startTime} onChange={setStartTime} title="Start time" placeholder="Start" />
           <Text style={styles.timeDash}>-</Text>
-          <InputField
-            style={styles.timeInput}
-            value={endTime}
-            onChangeText={setEndTime}
-            placeholder="17:00"
-            keyboardType="numbers-and-punctuation"
-          />
+          <TimePickerField value={endTime} onChange={setEndTime} title="End time" placeholder="End" />
         </View>
       </ScrollView>
 
@@ -106,7 +94,6 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
   days: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  timeInput: { flex: 1, height: 50 },
   timeDash: { fontFamily: fonts.semibold, fontSize: 16, color: colors.muted },
   footer: { paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxxl },
 });

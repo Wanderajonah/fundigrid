@@ -13,7 +13,7 @@ router.get("/profile", protect, async (req, res, next) => {
 
 router.put("/update", protect, async (req, res, next) => {
   try {
-    const allowed = ["name", "gender", "email", "phone", "profilePhoto", "coverPhoto", "bio", "skills", "experience", "location", "locationLabel", "address", "district", "country", "searchRadiusKm", "onboardingComplete", "role", "availableDays", "availableStartTime", "availableEndTime", "serviceRadius", "verificationDocs", "portfolioImages"];
+    const allowed = ["firstName", "lastName", "gender", "email", "phone", "profilePhoto", "coverPhoto", "bio", "skills", "experience", "location", "locationLabel", "address", "district", "country", "searchRadiusKm", "onboardingComplete", "role", "availableDays", "availableStartTime", "availableEndTime", "serviceRadius", "verificationDocs", "portfolioImages", "isOnline", "referees"];
     const numeric = ["experience", "searchRadiusKm", "serviceRadius"];
     const updates = {};
     for (const key of allowed) {
@@ -44,6 +44,25 @@ router.put("/update", protect, async (req, res, next) => {
           return res.status(400).json({ success: false, message: `${key} must be a number` });
         }
         value = n;
+      } else if (key === "isOnline") {
+        // The online/offline switch is a boolean no matter how it arrives.
+        value = value === true || value === "true" || value === 1;
+      } else if (key === "referees") {
+        // Verification needs people we can call — store only clean entries.
+        if (!Array.isArray(value)) {
+          return res.status(400).json({ success: false, message: "referees must be an array." });
+        }
+        if (value.length > 5) {
+          return res.status(400).json({ success: false, message: "You can keep up to 5 referees." });
+        }
+        const cleaned = value.map((r) => ({
+          name: String(r?.name || "").trim(),
+          phone: String(r?.phone || "").trim(),
+        }));
+        if (cleaned.some((r) => !r.name || !r.phone)) {
+          return res.status(400).json({ success: false, message: "Each referee needs a name and phone number." });
+        }
+        value = cleaned;
       }
       updates[key] = value;
     }

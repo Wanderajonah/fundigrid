@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationBar } from 'expo-navigation-bar';
 import { IMAGES } from '../src/assets';
+import { isLocationAvailable } from '../src/services/location';
+import { getLocationState, hasSeenWelcome, setLocationState } from '../src/services/welcome';
 import { colors, fonts, spacing } from '../src/theme';
 
 ExpoSplashScreen.preventAutoHideAsync();
@@ -83,7 +85,34 @@ export default function SplashScreen() {
 
     reveal();
 
-    const timer = setTimeout(() => router.replace('/welcome'), NAVIGATE_AFTER);
+    // First launch shows onboarding once. Later launches skip it and go
+    // straight to sign-in. Enable Location comes back only when it has never
+    // been answered, or when a working location was switched off again — a
+    // decline that never changed is not nagged about.
+    const timer = setTimeout(async () => {
+      const seen = await hasSeenWelcome();
+      if (!seen) {
+        router.replace('/welcome');
+        return;
+      }
+      const locationOk = await isLocationAvailable();
+      const previous = await getLocationState();
+
+      if (locationOk) {
+        await setLocationState('available');
+        router.replace('/phone');
+        return;
+      }
+
+      await setLocationState('unavailable');
+      const firstAsk = previous === null;
+      const lostIt = previous === 'available';
+      router.replace(
+        firstAsk || lostIt
+          ? { pathname: '/location', params: { next: 'phone' } }
+          : '/phone'
+      );
+    }, NAVIGATE_AFTER);
     return () => {
       active = false;
       clearTimeout(timer);

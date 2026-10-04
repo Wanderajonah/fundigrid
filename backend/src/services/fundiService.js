@@ -1,7 +1,8 @@
 const { getSupabase } = require("../config/supabase");
+const { fullName } = require("../controllers/authController");
 
 const PUBLIC_FIELDS = [
-  "id", "name", "role", "skills", "location", "locationLabel", "address",
+  "id", "firstName", "lastName", "role", "skills", "location", "locationLabel", "address",
   "district", "country", "experience", "bio", "profilePhoto", "status",
   "serviceRadius", "availableDays", "availableStartTime", "availableEndTime",
   "onboardingComplete", "created_at",
@@ -33,6 +34,7 @@ function toFundi(user, profile, { includePortfolio = false } = {}) {
   ];
   return {
     ...base,
+    name: fullName(user),
     skills: normaliseSkills(user, profile),
     // Photos are base64 and can be megabytes — only the profile detail sends them.
     ...(includePortfolio ? { portfolioImages } : {}),

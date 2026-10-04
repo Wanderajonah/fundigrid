@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = (
-  process.env.EXPO_PUBLIC_API_URL || 'http://192.168.42.187:5000/api'
+  process.env.EXPO_PUBLIC_API_URL || 'http://192.168.42.156:5000/api'
 ).replace(/\/+$/, '');
 
 type RequestOptions = {
@@ -58,10 +58,10 @@ export async function sendOtp(phone: string, purpose: 'register' | 'login' = 're
   return request('/auth/otp/send', { method: 'POST', body: { phone, purpose } });
 }
 
-export async function verifyOtpRegister(phone: string, code: string, name: string, role: string) {
+export async function verifyOtpRegister(phone: string, code: string, role: string) {
   const data = await request('/auth/otp/verify-register', {
     method: 'POST',
-    body: { phone, code, name, role },
+    body: { phone, code, role },
   });
   await AsyncStorage.setItem('token', data.token);
   await AsyncStorage.setItem('user', JSON.stringify(data.user));
@@ -165,6 +165,26 @@ export async function createBooking(token: string, data: any) {
   return request('/bookings/client/create', { method: 'POST', body: data, token });
 }
 
+// The client has the last word — a job is not COMPLETED until they confirm it.
+export async function confirmCompletion(token: string, bookingId: string) {
+  return request('/bookings/client/confirm-completion', { method: 'POST', body: { bookingId }, token });
+}
+
+// What has happened to a request so far, up to the surveyor's estimate.
+export async function getRequestProgress(token: string, bookingId: string) {
+  return request(`/bookings/progress/${bookingId}`, { token });
+}
+
+// Attach a fundi to an already-submitted request. The server refuses until
+// the surveyor's estimate is ready.
+export async function selectFundi(token: string, bookingId: string, fundiId: string, patch?: any) {
+  return request('/bookings/client/select-fundi', {
+    method: 'POST',
+    body: { bookingId, fundiId, ...(patch || {}) },
+    token,
+  });
+}
+
 // ── Payments ──
 
 export async function payForBooking(
@@ -218,6 +238,13 @@ export async function getRoutePreview(params: { origin: string; destination: str
 
 export async function getReviewsByFundi(fundiId: string, token?: string | null) {
   return request(`/reviews/${fundiId}`, { token: token ?? undefined });
+}
+
+export async function createReview(
+  token: string,
+  input: { bookingId?: string; fundiId?: string; rating: number; comment?: string; service?: string },
+) {
+  return request('/reviews', { method: 'POST', body: input, token });
 }
 
 // ── Fundis ──

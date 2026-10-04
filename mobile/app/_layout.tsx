@@ -51,6 +51,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(fundi-tabs)" />
         <Stack.Screen name="fundi-job-details" />
+        <Stack.Screen name="fundi-navigation" />
         <Stack.Screen name="request-job" />
         <Stack.Screen name="available-fundis" />
         <Stack.Screen name="fundi-profile" options={{ animation: 'slide_from_bottom' }} />

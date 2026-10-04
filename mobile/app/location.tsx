@@ -7,13 +7,19 @@ import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { resolveCurrentLocation } from '../src/services/location';
 import { getToken, updateLocation } from '../src/services/api';
+import { setLocationState } from '../src/services/welcome';
 
 export default function LocationScreen() {
   const router = useRouter();
-  // Reached from Profile it is a settings stop, not an onboarding step — go
-  // back instead of dumping the person into role selection.
-  const { from } = useLocalSearchParams<{ from?: string }>();
-  const finish = () => (from ? router.back() : router.push('/role'));
+  // Reached from Profile it is a settings stop — go back instead of dumping
+  // the person into role selection. A returning user (next=phone) skips role
+  // selection too and lands on sign-in; only onboarding flows go to /role.
+  const { from, next } = useLocalSearchParams<{ from?: string; next?: string }>();
+  const finish = () => {
+    if (from) return router.back();
+    if (next === 'phone') return router.replace('/phone');
+    router.push('/role');
+  };
   const [loading, setLoading] = useState(false);
 
   const handleAllow = async () => {
@@ -21,6 +27,9 @@ export default function LocationScreen() {
     try {
       const loc = await resolveCurrentLocation();
       if (loc) {
+        // A working fix is remembered so the launch router stops asking, and
+        // notices it again if the user later switches location off.
+        await setLocationState('available');
         const token = await getToken();
         if (token) {
           try {
@@ -34,6 +43,7 @@ export default function LocationScreen() {
           }
         }
       } else {
+        await setLocationState('unavailable');
         Alert.alert(
           'Location unavailable',
           'Could not read your location. You can allow it later from system settings.'
@@ -43,6 +53,12 @@ export default function LocationScreen() {
       setLoading(false);
       finish();
     }
+  };
+
+  // Declining is recorded so the launch router does not nag on every reload.
+  const handleDismiss = async () => {
+    await setLocationState('unavailable');
+    finish();
   };
 
   return (
@@ -70,7 +86,7 @@ export default function LocationScreen() {
 
       <View style={styles.footer}>
         <PrimaryButton title="Allow Location" loading={loading} onPress={handleAllow} />
-        <PrimaryButton title="Not Now" variant="secondary" onPress={finish} />
+        <PrimaryButton title="Not Now" variant="secondary" onPress={handleDismiss} />
       </View>
     </SafeAreaView>
   );

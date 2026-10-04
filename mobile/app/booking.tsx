@@ -9,7 +9,7 @@ import SelectField from '../src/components/SelectField';
 import { IMAGES } from '../src/assets';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { createBooking, getJobEstimate } from '../src/services/api';
+import { createBooking, getJobEstimate, getRequestProgress, selectFundi } from '../src/services/api';
 import { useAuth } from '../src/contexts/AuthContext';
 import { getCurrentLocation } from '../src/services/location';
 import { clearRequestDraft, getRequestDraft } from '../src/services/requestDraft';
@@ -33,10 +33,35 @@ function buildScheduledFor(date: string, time: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function dateFromStamp(stamp: string): string {
+  const d = new Date(stamp);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function timeFromStamp(stamp: string): string {
+  const d = new Date(stamp);
+  if (Number.isNaN(d.getTime())) return '';
+  const h24 = d.getHours();
+  const suffix = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${pad(h12)}:${pad(d.getMinutes())} ${suffix}`;
+}
+
 export default function BookingScreen() {
   const router = useRouter();
   const { token } = useAuth();
-  const params = useLocalSearchParams<{ fundiId?: string; name?: string; trade?: string; rating?: string }>();
+  const params = useLocalSearchParams<{
+    fundiId?: string;
+    name?: string;
+    trade?: string;
+    rating?: string;
+    bookingId?: string;
+  }>();
 
   // Details typed on the request screen are pre-filled here so the client
   // never answers the same question twice.
@@ -46,13 +71,15 @@ export default function BookingScreen() {
   const fundiName = params.name ? String(params.name) : 'Your fundi';
   const trade = params.trade ? String(params.trade) : 'Service';
   const rating = Number(params.rating ?? 0);
+  // Present when the request already went through the surveyor and we are
+  // only attaching this fundi to it.
+  const existing = params.bookingId ? String(params.bookingId) : '';
 
   const [date, setDate] = useState(draft.date);
   const [time, setTime] = useState('');
   const [description, setDescription] = useState(draft.description);
   const [address, setAddress] = useState(draft.location);
   const [submitting, setSubmitting] = useState(false);
-  const attachedPhotos = draft.photos;
 
   const category = draft.service || trade.split(',')[0].trim();
   const [estimate, setEstimate] = useState<{
@@ -61,9 +88,27 @@ export default function BookingScreen() {
     serviceFee: number;
     total: number;
   } | null>(null);
+  const [fromRequest, setFromRequest] = useState<any>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !existing) return;
+    let alive = true;
+    // The surveyor's figure replaces the rate-card preview, and the request
+    // itself carries the details if the draft has already been cleared.
+    getRequestProgress(token, existing)
+      .then((res) => {
+        if (!alive) return;
+        if (res?.estimate) setEstimate(res.estimate);
+        if (res?.booking) setFromRequest(res.booking);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [token, existing]);
+
+  useEffect(() => {
+    if (!token || existing) return;
     let alive = true;
     getJobEstimate(token, category)
       .then((res) => {
@@ -73,7 +118,22 @@ export default function BookingScreen() {
     return () => {
       alive = false;
     };
-  }, [token, category]);
+  }, [token, category, existing]);
+
+  // Fill any blank field from the stored request, without overwriting
+  // something the client has just typed.
+  useEffect(() => {
+    if (!fromRequest) return;
+    setDescription((prev) => prev || fromRequest.description || '');
+    setAddress((prev) => prev || fromRequest.address || '');
+    setDate((prev) => {
+      if (prev) return prev;
+      return fromRequest.scheduledFor ? dateFromStamp(fromRequest.scheduledFor) : '';
+    });
+    setTime((prev) => prev || (fromRequest.scheduledFor ? timeFromStamp(fromRequest.scheduledFor) : ''));
+  }, [fromRequest]);
+
+  const attachedPhotos = draft.photos.length ? draft.photos : (fromRequest?.images as string[]) || [];
 
   const summary = useMemo(
     () => ({ name: fundiName, trade, rating, image: IMAGES.fundi }),
@@ -96,37 +156,52 @@ export default function BookingScreen() {
 
     setSubmitting(true);
     try {
-      const device = await getCurrentLocation();
-      const location = device
-        ? { lat: device.latitude, lng: device.longitude }
-        : { lat: DEFAULT_REGION.latitude, lng: DEFAULT_REGION.longitude };
-
       const scheduledFor = buildScheduledFor(date, time);
-      const data = await createBooking(token, {
-        fundiId,
-        category,
-        description: description.trim(),
-        address: address.trim() || (device ? device.address || '' : ''),
-        location,
-        ...(draft.photos.length ? { images: draft.photos } : {}),
-        ...(scheduledFor ? { scheduledFor } : {}),
-      });
+      let bookingId = existing;
+
+      if (existing) {
+        // The request already exists and has been priced — this only attaches
+        // the fundi the client just picked.
+        await selectFundi(token, existing, fundiId, {
+          description: description.trim(),
+          address: address.trim(),
+          ...(scheduledFor ? { scheduledFor } : {}),
+        });
+      } else {
+        const device = await getCurrentLocation();
+        const location = device
+          ? { lat: device.latitude, lng: device.longitude }
+          : { lat: DEFAULT_REGION.latitude, lng: DEFAULT_REGION.longitude };
+
+        const data = await createBooking(token, {
+          fundiId,
+          category,
+          description: description.trim(),
+          address: address.trim() || (device ? device.address || '' : ''),
+          location,
+          ...(draft.photos.length ? { images: draft.photos } : {}),
+          ...(scheduledFor ? { scheduledFor } : {}),
+        });
+        bookingId = data?.booking?.id ? String(data.booking.id) : '';
+      }
       clearRequestDraft();
 
-      const booking = data?.booking;
       router.replace({
         pathname: '/booking-confirmed',
         params: {
-          bookingId: booking?.id ? String(booking.id) : '',
+          bookingId,
           fundiName,
-          category,
+          category: fromRequest?.category || category,
           date,
           time,
           estimate: estimate ? String(estimate.total) : '',
         },
       });
     } catch (e: any) {
-      Alert.alert('Booking failed', e?.message || 'Could not create the booking. Try again.');
+      Alert.alert(
+        existing ? 'Could not select fundi' : 'Booking failed',
+        e?.message || 'Could not save your choice. Try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -144,7 +219,7 @@ export default function BookingScreen() {
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <FundiSummaryCard {...summary} />
 
-        {draft.service || draft.description || draft.location || draft.date ? (
+        {existing || draft.service || draft.description || draft.location || draft.date ? (
           <View style={styles.fromRequest}>
             <Ionicons name="checkmark-circle" size={15} color={colors.success} />
             <Text style={styles.fromRequestText}>Details from your request — edit anything below before confirming.</Text>
@@ -211,7 +286,9 @@ export default function BookingScreen() {
               <Text style={styles.estimateTotal}>UGX {estimate.total.toLocaleString()}</Text>
             </View>
             <Text style={styles.estimateNote}>
-              Indicative price for this job — you can agree a different amount with your fundi on site. You pay after the work is done.
+              {(estimate as any)?.source === 'surveyor'
+                ? 'Prepared by your quantity surveyor. You can agree a different amount with your fundi on site — you pay after the work is done.'
+                : 'Indicative price for this job — you can agree a different amount with your fundi on site. You pay after the work is done.'}
             </Text>
           </View>
         ) : null}
@@ -223,7 +300,7 @@ export default function BookingScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton title="Confirm Booking" loading={submitting} onPress={confirm} />
+        <PrimaryButton title={existing ? 'Select This Fundi' : 'Confirm Booking'} loading={submitting} onPress={confirm} />
       </View>
     </SafeAreaView>
   );

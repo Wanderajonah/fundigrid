@@ -12,7 +12,6 @@ export const CATEGORIES: Category[] = [
   { label: 'Electrical', icon: '⚡' },
   { label: 'Carpentry', icon: '🪚' },
   { label: 'Masonry', icon: '🧱' },
-  { label: 'Tailoring', icon: '✂️' },
   { label: 'Mechanics', icon: '🔩' },
   { label: 'Painting', icon: '🎨' },
   { label: 'Landscaping', icon: '🌿' },

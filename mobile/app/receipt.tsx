@@ -168,6 +168,7 @@ export default function ReceiptScreen() {
                     fundiName: receipt.fundiName || fundiName || '',
                     trade: receipt.category || fundiTrade || '',
                     rating: '',
+                    bookingId: receipt.bookingId || bookingId || '',
                   },
                 })
               }
