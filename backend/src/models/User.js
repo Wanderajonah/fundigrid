@@ -35,6 +35,11 @@ class User extends Model {
     serviceRadius: 10,
     verificationDocs: [],
     referees: [],
+    // Password sign-in lockout state — see authController.login.
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    lockoutBatches: 0,
+    passwordBlocked: false,
   };
 }
 

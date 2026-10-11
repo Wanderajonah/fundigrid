@@ -6,6 +6,7 @@ interface Props {
   sub?: string;
   tone?: 'sky' | 'amber' | 'violet' | 'orange' | 'emerald' | 'gray';
   icon?: ReactNode;
+  className?: string;
 }
 
 const TONES: Record<NonNullable<Props['tone']>, { bg: string; text: string }> = {
@@ -14,22 +15,22 @@ const TONES: Record<NonNullable<Props['tone']>, { bg: string; text: string }> = 
   violet: { bg: 'bg-violet-50', text: 'text-violet-600' },
   orange: { bg: 'bg-orange-50', text: 'text-orange-600' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
-  gray: { bg: 'bg-gray-50', text: 'text-gray-500' },
+  gray: { bg: 'bg-slate-50', text: 'text-slate-500' },
 };
 
-export default function StatCard({ label, value, sub, tone = 'gray', icon }: Props) {
+export default function StatCard({ label, value, sub, tone = 'gray', icon, className }: Props) {
   const t = TONES[tone];
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-6 flex flex-col gap-4 min-w-0">
+    <div className={`bg-white rounded-2xl border border-slate-100 p-5 flex flex-col gap-3 min-w-0 ${className || ''}`}>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-gray-400 truncate">{label}</p>
-        <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${t.bg} ${t.text}`}>
+        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide truncate">{label}</p>
+        <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${t.bg} ${t.text}`}>
           {icon}
         </span>
       </div>
       <div>
-        <p className="text-3xl font-bold text-gray-900 tracking-tight">{value}</p>
-        {sub && <p className="text-xs text-gray-300 mt-1.5">{sub}</p>}
+        <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
+        {sub && <p className="text-[11px] text-slate-400 mt-1">{sub}</p>}
       </div>
     </div>
   );

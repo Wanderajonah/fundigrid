@@ -86,11 +86,12 @@ export default function ClientDashboard() {
             {recent.map(job => {
               const s = statusMeta(job.status);
               const amount = bookingAmount(job);
+              const CategoryIcon = categoryIcon(job.category);
               return (
                 <Link key={job.id} to="/client/requests" className="flex items-center justify-between p-6 bg-white rounded-2xl border border-gray-100 hover:shadow-md transition-all group">
                   <div className="flex items-center gap-5">
                     <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <span className="text-lg">{categoryIcon(job.category)}</span>
+                      <CategoryIcon size={20} className="text-gray-500 group-hover:text-primary" />
                     </div>
                     <div>
                       <div className="flex items-center gap-3">

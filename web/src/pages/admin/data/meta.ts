@@ -124,7 +124,7 @@ export const FUNDI_STATUS_META: Record<FundiStatus, { label: string; cls: string
 
 export const SURVEYOR_STATUS_META: Record<'Available' | 'Unavailable', { label: string; cls: string }> = {
   Available: { label: 'Available', cls: 'bg-emerald-50 text-emerald-600' },
-  Unavailable: { label: 'Unavailable', cls: 'bg-gray-100 text-gray-400' },
+  Unavailable: { label: 'Unavailable', cls: 'bg-slate-100 text-slate-400' },
 };
 
 export const BOOKING_STATUS_META: Record<BookingStatus, { label: string; cls: string; dot: string }> = {

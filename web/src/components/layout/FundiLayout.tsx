@@ -56,7 +56,7 @@ export default function FundiSidebar() {
           ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-auto`}
       >
         <div className="h-[72px] flex items-center px-6 border-b border-gray-50">
-          <FundiGridLogo size="sm" />
+          <FundiGridLogo size="sm" to="/fundi" />
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">

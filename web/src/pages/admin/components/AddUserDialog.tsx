@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { X } from 'lucide-react';
 import { ApiError, type CreateUserInput, type RawRole } from '../../../lib/api';
+import { evaluatePassword, PASSWORD_MESSAGE, validatePassword } from '../../../lib/passwordPolicy';
 
 interface Props {
   open: boolean;
@@ -18,15 +19,16 @@ const ROLE_OPTIONS: { value: RawRole; label: string }[] = [
 ];
 
 const inputCls =
-  'w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all';
+  'w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all';
 
-const labelCls = 'block text-sm font-semibold text-gray-900 mb-2';
+const labelCls = 'block text-sm font-semibold text-slate-900 mb-2';
 
 export default function AddUserDialog({ open, role, lockRole = false, onClose, onCreate }: Props) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [pickedRole, setPickedRole] = useState<RawRole>(role);
   const [skills, setSkills] = useState('');
   const [district, setDistrict] = useState('');
@@ -48,13 +50,26 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
       setError('Enter a valid phone number');
       return;
     }
+    if (!email.trim()) {
+      setError('Email is required — it is what they sign in with');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter a valid email address');
+      return;
+    }
+    if (!validatePassword(password)) {
+      setError(PASSWORD_MESSAGE);
+      return;
+    }
     setBusy(true);
     try {
       await onCreate({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
-        email: email.trim() || undefined,
+        email: email.trim(),
+        password,
         role: activeRole,
         skills: skills.trim() || undefined,
         district: district.trim() || undefined,
@@ -63,6 +78,7 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
       setLastName('');
       setPhone('');
       setEmail('');
+      setPassword('');
       setSkills('');
       setDistrict('');
       onClose();
@@ -78,21 +94,21 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
       <button
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-navy-900/40 backdrop-blur-sm"
         type="button"
       />
       <form
         onSubmit={submit}
-        className="relative w-full max-w-lg bg-white rounded-2xl border border-gray-100 p-7 shadow-xl"
+        className="relative w-full max-w-lg bg-white rounded-2xl border border-slate-100 p-7 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Add user</h2>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Create an account directly in the database — no OTP needed.
+            <h2 className="text-lg font-bold text-slate-900">Add user</h2>
+            <p className="text-sm text-slate-400 mt-0.5">
+              Create an account directly in the database — they sign in with the email and password you set.
             </p>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-300 hover:text-gray-600 transition-colors">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -115,7 +131,7 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
               placeholder="256771234567"
               inputMode="tel"
             />
-            <span className="block text-xs text-gray-300 mt-1.5">
+            <span className="block text-xs text-slate-400 mt-1.5">
               Use 2567… format so it matches the number they sign in with.
             </span>
           </label>
@@ -150,12 +166,12 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
                 onChange={e => setSkills(e.target.value)}
                 placeholder="Plumbing, Electrical"
               />
-              <span className="block text-xs text-gray-300 mt-1.5">Comma separated — used to match jobs.</span>
+              <span className="block text-xs text-slate-400 mt-1.5">Comma separated — used to match jobs.</span>
             </label>
           )}
 
           <label className="block sm:col-span-2">
-            <span className={labelCls}>Email (optional)</span>
+            <span className={labelCls}>Email</span>
             <input
               className={inputCls}
               value={email}
@@ -163,6 +179,31 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
               placeholder="name@example.com"
               inputMode="email"
             />
+            <span className="block text-xs text-slate-400 mt-1.5">
+              They sign in with this email and the password below.
+            </span>
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className={labelCls}>Password</span>
+            <input
+              className={inputCls}
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="8+ chars with upper, lower, number, symbol"
+              autoComplete="new-password"
+            />
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+              {evaluatePassword(password).map(rule => (
+                <li
+                  key={rule.key}
+                  className={`text-xs ${rule.ok ? 'text-emerald-600' : 'text-slate-400'}`}
+                >
+                  ✓ {rule.label}
+                </li>
+              ))}
+            </ul>
           </label>
         </div>
 
@@ -176,14 +217,14 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-black transition-all disabled:opacity-60"
+            className="px-5 py-2.5 rounded-xl bg-navy-900 text-white text-sm font-semibold hover:bg-navy-800 transition-all disabled:opacity-60"
           >
             {busy ? 'Saving…' : 'Add user'}
           </button>

@@ -30,7 +30,7 @@ export default function SurveyorsPage() {
       <PageHeader title="Surveyors" subtitle="Quantity surveyors handling site visits and cost estimates">
         <button
           onClick={() => setAdding(true)}
-          className="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white font-semibold px-6 py-3 rounded-xl text-sm transition-all"
+          className="inline-flex items-center gap-2 bg-navy-900 hover:bg-navy-800 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-all"
         >
           <Plus size={16} /> Add Surveyor
         </button>
@@ -50,12 +50,12 @@ export default function SurveyorsPage() {
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search surveyors…"
-            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-gray-300"
+            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-slate-400"
           />
         </div>
         {(['all', 'Available', 'Unavailable'] as const).map(key => (
@@ -63,7 +63,7 @@ export default function SurveyorsPage() {
             key={key}
             onClick={() => setFilter(key)}
             className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
-              filter === key ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+              filter === key ? 'bg-navy-900 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
             }`}
           >
             {key === 'all' ? 'All' : key}
@@ -71,11 +71,11 @@ export default function SurveyorsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-7">
+      <div className="bg-white rounded-2xl border border-slate-100 p-7">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[660px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-gray-300 border-b border-gray-50">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-50">
                 <th className="font-semibold pb-4 pr-4">Name</th>
                 <th className="font-semibold pb-4 pr-4">Specialty</th>
                 <th className="font-semibold pb-4 pr-4">Location</th>
@@ -84,40 +84,40 @@ export default function SurveyorsPage() {
                 <th className="font-semibold pb-4 pr-4">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {filtered.map(s => {
                 const meta = SURVEYOR_STATUS_META[s.available ? 'Available' : 'Unavailable'];
                 return (
-                  <tr key={s.id} className="hover:bg-gray-50/70 transition-colors">
+                  <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-4 pr-4">
                       <div className="flex items-center gap-3">
-                        <span className="w-9 h-9 rounded-full bg-gray-900 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+                        <span className="w-9 h-9 rounded-full bg-navy-900 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
                           {initialsOf(s.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 truncate">{s.name}</p>
-                          <p className="text-[11px] text-gray-300 truncate">{s.id}</p>
+                          <p className="font-semibold text-slate-900 truncate">{s.name}</p>
+                          <p className="text-[11px] text-slate-400 truncate">{s.id}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 pr-4 text-gray-700">{s.specialty}</td>
-                    <td className="py-4 pr-4 text-gray-500">{s.location}</td>
-                    <td className="py-4 pr-4 text-gray-700 whitespace-nowrap">
-                      {s.rating > 0 ? <>★ {s.rating}</> : <span className="text-gray-300">—</span>}
+                    <td className="py-4 pr-4 text-slate-700">{s.specialty}</td>
+                    <td className="py-4 pr-4 text-slate-500">{s.location}</td>
+                    <td className="py-4 pr-4 text-slate-700 whitespace-nowrap">
+                      {s.rating > 0 ? <>★ {s.rating}</> : <span className="text-slate-400">—</span>}
                     </td>
-                    <td className="py-4 pr-4 text-gray-700">{s.jobs}</td>
+                    <td className="py-4 pr-4 text-slate-700">{s.jobs}</td>
                     <td className="py-4 pr-4"><StatusBadge label={meta.label} cls={meta.cls} /></td>
                   </tr>
                 );
               })}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-400">No surveyors match your search.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-400">No surveyors match your search.</td>
                 </tr>
               )}
               {loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-400">Loading surveyors…</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-400">Loading surveyors…</td>
                 </tr>
               )}
             </tbody>

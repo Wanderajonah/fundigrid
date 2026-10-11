@@ -88,7 +88,7 @@ app.get("/api/health", (req, res) => {
       socket: true,
       wallet: true
     },
-    sms: { configured: comms.configured, devMode: comms.devMode }
+    sms: { configured: comms.configured, devMode: comms.devMode, logOtp: process.env.COMMS_LOG_OTP !== "false" }
   });
 });
 
@@ -147,7 +147,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Socket.io server initialized`);
   const { otpChannel } = require("./services/otpService");
   const comms = otpChannel();
-  console.log(`SMS: configured=${comms.configured} otpDevMode=${comms.devMode} production=${comms.production}`);
+  console.log(`SMS: configured=${comms.configured} otpDevMode=${comms.devMode} otpLog=${process.env.COMMS_LOG_OTP !== "false"} production=${comms.production}`);
   const lanIp = Object.values(os.networkInterfaces())
     .flat()
     .find((i) => i && i.family === 'IPv4' && !i.internal)?.address;

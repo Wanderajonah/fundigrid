@@ -45,12 +45,12 @@ export default function BookingsPage() {
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search bookings…"
-            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-gray-300"
+            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-slate-400"
           />
         </div>
         {FILTERS.map(key => (
@@ -58,7 +58,7 @@ export default function BookingsPage() {
             key={key}
             onClick={() => setFilter(key)}
             className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
-              filter === key ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+              filter === key ? 'bg-navy-900 text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
             }`}
           >
             {key === 'all' ? 'All' : key}
@@ -67,11 +67,11 @@ export default function BookingsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-7">
+      <div className="bg-white rounded-2xl border border-slate-100 p-7">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[860px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-gray-300 border-b border-gray-50">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-50">
                 <th className="font-semibold pb-4 pr-4">ID</th>
                 <th className="font-semibold pb-4 pr-4">Service</th>
                 <th className="font-semibold pb-4 pr-4">Client</th>
@@ -83,18 +83,18 @@ export default function BookingsPage() {
                 <th className="font-semibold pb-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {filtered.map(b => {
                 const meta = BOOKING_STATUS_META[b.status];
                 return (
-                  <tr key={b.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-4 pr-4 font-semibold text-gray-900 whitespace-nowrap">{b.id}</td>
-                    <td className="py-4 pr-4 text-gray-700">{b.service}</td>
-                    <td className="py-4 pr-4 text-gray-500">{b.client}</td>
-                    <td className="py-4 pr-4 text-gray-700">{b.fundi}</td>
-                    <td className="py-4 pr-4 text-gray-500">{b.location}</td>
-                    <td className="py-4 pr-4 text-gray-400 whitespace-nowrap">{b.date}</td>
-                    <td className="py-4 pr-4 text-gray-900 font-semibold whitespace-nowrap">{formatUGX(b.amount)}</td>
+                  <tr key={b.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-4 pr-4 font-semibold text-slate-900 whitespace-nowrap">{b.id}</td>
+                    <td className="py-4 pr-4 text-slate-700">{b.service}</td>
+                    <td className="py-4 pr-4 text-slate-500">{b.client}</td>
+                    <td className="py-4 pr-4 text-slate-700">{b.fundi}</td>
+                    <td className="py-4 pr-4 text-slate-500">{b.location}</td>
+                    <td className="py-4 pr-4 text-slate-400 whitespace-nowrap">{b.date}</td>
+                    <td className="py-4 pr-4 text-slate-900 font-semibold whitespace-nowrap">{formatUGX(b.amount)}</td>
                     <td className="py-4 pr-4"><StatusBadge label={meta.label} cls={meta.cls} dot={meta.dot} /></td>
                     <td className="py-4 text-right">
                       <button className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors">View</button>
@@ -104,12 +104,12 @@ export default function BookingsPage() {
               })}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-400">No bookings match your search.</td>
+                  <td colSpan={9} className="py-12 text-center text-slate-400">No bookings match your search.</td>
                 </tr>
               )}
               {loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-400">Loading bookings…</td>
+                  <td colSpan={9} className="py-12 text-center text-slate-400">Loading bookings…</td>
                 </tr>
               )}
             </tbody>

@@ -1,10 +1,10 @@
 import { io, Socket } from 'socket.io-client';
+import { apiBase } from './config';
 
 let socket: Socket | null = null;
 
 function apiUrl(): string {
-  const base = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.42.156:5000/api';
-  return base.replace(/\/api\/?$/, '');
+  return apiBase().replace(/\/api\/?$/, '');
 }
 
 export function connectSocket(token: string): Socket {

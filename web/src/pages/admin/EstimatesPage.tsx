@@ -6,6 +6,7 @@ import StatusBadge from './components/StatusBadge';
 import Tabs from './components/Tabs';
 import { useAdminStore } from './context/AdminStore';
 import { ESTIMATE_STATUS_META, formatUGX } from './data/meta';
+import { jobRef } from '../../lib/jobRef';
 
 const FILTERS = [
   { key: 'all', label: 'All Statuses' },
@@ -28,7 +29,7 @@ export default function EstimatesPage() {
     return estimates.filter(e => {
       if (filter !== 'all' && e.status !== filter) return false;
       if (!q) return true;
-      return [e.id, e.jobId, e.service, e.customer, e.surveyor].some(v => v.toLowerCase().includes(q));
+      return [e.id, e.jobId, jobRef(e.jobId), e.service, e.customer, e.surveyor].some(v => v.toLowerCase().includes(q));
     });
   }, [estimates, filter, query]);
 
@@ -51,21 +52,21 @@ export default function EstimatesPage() {
           onChange={key => { setFilter(key); setPage(1); }}
         />
         <div className="relative w-full sm:w-72">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setPage(1); }}
             placeholder="Search estimates…"
-            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-gray-300"
+            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-slate-400"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-7">
+      <div className="bg-white rounded-2xl border border-slate-100 p-7">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[780px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-gray-300 border-b border-gray-50">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-50">
                 <th className="font-semibold pb-4 pr-4">Job ID</th>
                 <th className="font-semibold pb-4 pr-4">Service</th>
                 <th className="font-semibold pb-4 pr-4">Customer</th>
@@ -75,16 +76,16 @@ export default function EstimatesPage() {
                 <th className="font-semibold pb-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {slice.map(e => {
                 const meta = ESTIMATE_STATUS_META[e.status];
                 return (
-                  <tr key={e.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-4 pr-4 font-semibold text-gray-900">{e.jobId}</td>
-                    <td className="py-4 pr-4 text-gray-700">{e.service}</td>
-                    <td className="py-4 pr-4 text-gray-500">{e.customer}</td>
-                    <td className="py-4 pr-4 text-gray-500">{e.surveyor}</td>
-                    <td className="py-4 pr-4 font-semibold text-gray-900 whitespace-nowrap">{formatUGX(e.amount)}</td>
+                  <tr key={e.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-4 pr-4 font-semibold text-slate-900">{jobRef(e.jobId)}</td>
+                    <td className="py-4 pr-4 text-slate-700">{e.service}</td>
+                    <td className="py-4 pr-4 text-slate-500">{e.customer}</td>
+                    <td className="py-4 pr-4 text-slate-500">{e.surveyor}</td>
+                    <td className="py-4 pr-4 font-semibold text-slate-900 whitespace-nowrap">{formatUGX(e.amount)}</td>
                     <td className="py-4 pr-4"><StatusBadge label={meta.label} cls={meta.cls} dot={meta.dot} /></td>
                     <td className="py-4 text-right">
                       <Link to={`/admin/estimates/${e.id}`} className="text-sm font-semibold text-primary hover:text-primary-dark">View</Link>
@@ -94,29 +95,29 @@ export default function EstimatesPage() {
               })}
               {slice.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">No estimates match this filter.</td>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">No estimates match this filter.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="flex items-center justify-between mt-6 pt-5 border-t border-gray-50">
-          <p className="text-xs text-gray-400">Showing {from}–{to} of {filtered.length}</p>
+        <div className="flex items-center justify-between mt-6 pt-5 border-t border-slate-50">
+          <p className="text-xs text-slate-400">Showing {from}–{to} of {filtered.length}</p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={current === 1}
-              className="p-2 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-900 disabled:opacity-40 transition-colors"
+              className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-900 disabled:opacity-40 transition-colors"
               aria-label="Previous page"
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="text-xs font-semibold text-gray-600 px-2">{current} / {pages}</span>
+            <span className="text-xs font-semibold text-slate-600 px-2">{current} / {pages}</span>
             <button
               onClick={() => setPage(p => Math.min(pages, p + 1))}
               disabled={current === pages}
-              className="p-2 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-900 disabled:opacity-40 transition-colors"
+              className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-900 disabled:opacity-40 transition-colors"
               aria-label="Next page"
             >
               <ChevronRight size={16} />

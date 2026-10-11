@@ -37,9 +37,6 @@ export default function RoleScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}>
-          <Ionicons name="chevron-back" size={24} color={colors.ink} />
-        </Pressable>
         <Image source={IMAGES.logoLight} style={styles.logo} resizeMode="contain" />
       </View>
 
@@ -75,7 +72,6 @@ export default function RoleScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
   header: { height: 56, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xxl },
-  backBtn: { position: 'absolute', left: spacing.xxl, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   logo: { width: 85, height: 85 },
   body: { flex: 1, paddingHorizontal: spacing.xxl },
   h1: { fontFamily: fonts.bold, fontSize: 24, color: colors.ink },

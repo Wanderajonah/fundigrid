@@ -5,6 +5,7 @@ import StatusBadge from './components/StatusBadge';
 import Tabs from './components/Tabs';
 import { useAdminStore } from './context/AdminStore';
 import { FUNDI_STATUS_META, initialsOf } from './data/meta';
+import { jobRef } from '../../lib/jobRef';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
@@ -28,7 +29,7 @@ export default function FundiProfilePage() {
   if (!fundi) {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
-        <p className="text-lg font-bold text-gray-900">Fundi not found</p>
+        <p className="text-lg font-bold text-slate-900">Fundi not found</p>
         <Link to="/admin/fundis" className="inline-block mt-6 text-sm font-semibold text-primary hover:text-primary-dark">Back to fundis</Link>
       </div>
     );
@@ -41,7 +42,7 @@ export default function FundiProfilePage() {
 
   return (
     <div className="max-w-[1100px] mx-auto">
-      <Link to="/admin/fundis" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-900 transition-colors mb-6">
+      <Link to="/admin/fundis" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-900 transition-colors mb-6">
         <ArrowLeft size={16} /> Back to fundis
       </Link>
 
@@ -51,14 +52,14 @@ export default function FundiProfilePage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-7 mb-6">
+      <div className="bg-white rounded-2xl border border-slate-100 p-7 mb-6">
         <div className="flex flex-wrap items-center gap-5">
-          <div className="w-20 h-20 rounded-full bg-gray-900 text-white flex items-center justify-center text-xl font-bold shrink-0">
+          <div className="w-20 h-20 rounded-full bg-navy-900 text-white flex items-center justify-center text-xl font-bold shrink-0">
             {initialsOf(fundi.name)}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl font-bold text-gray-900">{fundi.name}</h1>
+              <h1 className="text-2xl font-bold text-slate-900">{fundi.name}</h1>
               {fundi.verified && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
                   <BadgeCheck size={13} /> Verified
@@ -66,14 +67,14 @@ export default function FundiProfilePage() {
               )}
               <StatusBadge label={meta.label} cls={meta.cls} />
             </div>
-            <p className="text-sm text-gray-400 mt-1.5 flex items-center gap-3 flex-wrap">
+            <p className="text-sm text-slate-400 mt-1.5 flex items-center gap-3 flex-wrap">
               <span>{fundi.trade}</span>
               <span className="inline-flex items-center gap-1"><MapPin size={13} /> {fundi.location}</span>
               <span className="inline-flex items-center gap-1"><Star size={13} className="text-primary" /> {fundi.rating} ({fundi.reviews} reviews)</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+            <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
               <MessageSquare size={15} /> Message
             </button>
             <button
@@ -91,14 +92,14 @@ export default function FundiProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-7 min-w-0">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-7 min-w-0">
           <Tabs tabs={TABS} active={tab} onChange={setTab} variant="underline" />
 
           {tab === 'overview' && (
             <div className="space-y-7">
               <div>
-                <h3 className="text-sm font-bold text-gray-900 mb-3">About</h3>
-                <p className="text-sm leading-relaxed text-gray-500">{fundi.about}</p>
+                <h3 className="text-sm font-bold text-slate-900 mb-3">About</h3>
+                <p className="text-sm leading-relaxed text-slate-500">{fundi.about}</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
@@ -107,11 +108,11 @@ export default function FundiProfilePage() {
                   { icon: <Clock size={15} />, label: 'Availability', value: fundi.availability },
                   { icon: <Star size={15} />, label: 'Completed Jobs', value: String(fundi.completedJobs) },
                 ].map(item => (
-                  <div key={item.label} className="flex items-start gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                  <div key={item.label} className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
                     <span className="text-primary mt-0.5">{item.icon}</span>
                     <div>
-                      <p className="text-[11px] uppercase tracking-wide text-gray-300">{item.label}</p>
-                      <p className="text-sm font-medium text-gray-700 mt-0.5">{item.value}</p>
+                      <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.label}</p>
+                      <p className="text-sm font-medium text-slate-700 mt-0.5">{item.value}</p>
                     </div>
                   </div>
                 ))}
@@ -120,34 +121,34 @@ export default function FundiProfilePage() {
           )}
 
           {tab === 'reviews' && (
-            <ul className="divide-y divide-gray-50">
+            <ul className="divide-y divide-slate-50">
               {REVIEWS.map(r => (
                 <li key={r.who + r.when} className="py-5 first:pt-0">
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-[10px] font-bold">
+                      <span className="w-8 h-8 rounded-full bg-navy-900 text-white flex items-center justify-center text-[10px] font-bold">
                         {initialsOf(r.who)}
                       </span>
-                      <p className="text-sm font-semibold text-gray-900">{r.who}</p>
+                      <p className="text-sm font-semibold text-slate-900">{r.who}</p>
                     </div>
-                    <span className="text-xs text-gray-300">{r.when}</span>
+                    <span className="text-xs text-slate-400">{r.when}</span>
                   </div>
                   <p className="text-primary text-xs mb-1.5">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</p>
-                  <p className="text-sm text-gray-500 leading-relaxed">{r.text}</p>
+                  <p className="text-sm text-slate-500 leading-relaxed">{r.text}</p>
                 </li>
               ))}
             </ul>
           )}
 
           {tab === 'jobs' && (
-            <ul className="divide-y divide-gray-50">
+            <ul className="divide-y divide-slate-50">
               {shownJobs.map(job => (
                 <li key={job.id} className="py-4 flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{job.service} · {job.id}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{job.location} · {job.date}</p>
+                    <p className="text-sm font-semibold text-slate-900">{job.service} · {jobRef(job.id)}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{job.location} · {job.date}</p>
                   </div>
-                  <StatusBadge label={job.status} cls="bg-gray-100 text-gray-500" />
+                  <StatusBadge label={job.status} cls="bg-slate-100 text-slate-500" />
                 </li>
               ))}
             </ul>
@@ -155,8 +156,8 @@ export default function FundiProfilePage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 p-7">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Details</h3>
+          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+            <h3 className="text-sm font-bold text-slate-900 mb-4">Details</h3>
             <dl className="space-y-3 text-sm">
               {[
                 ['Phone', fundi.phone],
@@ -167,14 +168,14 @@ export default function FundiProfilePage() {
                 ['Status', meta.label],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-4">
-                  <dt className="text-gray-400">{label}</dt>
-                  <dd className="font-medium text-gray-700 text-right">{value}</dd>
+                  <dt className="text-slate-400">{label}</dt>
+                  <dd className="font-medium text-slate-700 text-right">{value}</dd>
                 </div>
               ))}
             </dl>
           </div>
 
-          <div className="bg-gray-900 rounded-2xl p-7 text-white">
+          <div className="bg-navy-900 rounded-2xl p-7 text-white">
             <p className="text-xs uppercase tracking-wider text-white/40 mb-2">Completion rate</p>
             <p className="text-3xl font-bold">{Math.round((fundi.completedJobs / (fundi.completedJobs + 4)) * 100)}%</p>
             <p className="text-sm text-white/50 mt-2">{fundi.completedJobs} completed jobs on record</p>

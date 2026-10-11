@@ -15,6 +15,7 @@ export const IMAGES = {
   mtn: require('../assets/mtn.png'),
   airtel: require('../assets/airtel.png'),
   skyline: require('../assets/skyline.png'),
+  loginIllustration: require('../assets/loginillustration.png'),
   sliderAvatar: require('../assets/sliderAvator.png'),
   foreground: require('../assets/foreground.png'),
   plumbing: require('../assets/plumbing.png'),

@@ -10,10 +10,10 @@ import {
 import {
   getCachedUser,
   getProfile,
+  login,
   sendOtp,
   setCachedUser,
   setToken,
-  verifyLogin,
   verifyRegister,
   type Role,
   type SessionUser,
@@ -22,9 +22,21 @@ import {
 interface AuthContextValue {
   user: SessionUser | null;
   initializing: boolean;
-  requestOtp: (phone: string, purpose: 'login' | 'register') => Promise<{ code?: string }>;
-  signIn: (phone: string, code: string) => Promise<SessionUser>;
-  signUp: (input: { phone: string; code: string; name?: string; email?: string; role?: Role }) => Promise<SessionUser>;
+  /** True when the signed-in password predates the current complexity rules. */
+  passwordWeak: boolean;
+  /** False when the account has never chosen a password (OTP sign-ups). */
+  hasPassword: boolean;
+  requestOtp: (phone: string, purpose: 'register' | 'reset') => Promise<{ code?: string }>;
+  /** Resolves with the flag so the caller can prompt without a re-render. */
+  signIn: (email: string, password: string) => Promise<{ user: SessionUser; passwordWeak: boolean }>;
+  signUp: (input: {
+    phone: string;
+    code: string;
+    name?: string;
+    email?: string;
+    password?: string;
+    role?: Role;
+  }) => Promise<SessionUser>;
   signOut: () => void;
   refresh: () => Promise<void>;
 }
@@ -39,17 +51,23 @@ function persist(token: string, user: SessionUser) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(() => getCachedUser());
   const [initializing, setInitializing] = useState(true);
+  const [passwordWeak, setPasswordWeak] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!getProfileToken()) return;
     try {
-      const { user: fresh } = await getProfile();
-      setUser(fresh);
-      setCachedUser(fresh);
+      const payload = await getProfile();
+      setUser(payload.user);
+      setCachedUser(payload.user);
+      if (typeof payload.passwordWeak === 'boolean') setPasswordWeak(payload.passwordWeak);
+      if (typeof payload.hasPassword === 'boolean') setHasPassword(payload.hasPassword);
     } catch {
       setToken(null);
       setCachedUser(null);
       setUser(null);
+      setPasswordWeak(false);
+      setHasPassword(false);
     }
   }, []);
 
@@ -57,23 +75,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh().finally(() => setInitializing(false));
   }, [refresh]);
 
-  const requestOtp = useCallback(async (phone: string, purpose: 'login' | 'register') => {
+  const requestOtp = useCallback(async (phone: string, purpose: 'register' | 'reset') => {
     const res = await sendOtp(phone, purpose);
     return { code: res.code };
   }, []);
 
-  const signIn = useCallback(async (phone: string, code: string) => {
-    const res = await verifyLogin({ phone, code });
+  const signIn = useCallback(async (email: string, password: string) => {
+    const res = await login({ email, password });
     persist(res.token, res.user);
     setUser(res.user);
-    return res.user;
+    setPasswordWeak(Boolean(res.passwordWeak));
+    setHasPassword(Boolean(res.hasPassword));
+    return { user: res.user, passwordWeak: Boolean(res.passwordWeak) };
   }, []);
 
   const signUp = useCallback(
-    async (input: { phone: string; code: string; name?: string; email?: string; role?: Role }) => {
+    async (input: {
+      phone: string;
+      code: string;
+      name?: string;
+      email?: string;
+      password?: string;
+      role?: Role;
+    }) => {
       const res = await verifyRegister(input);
       persist(res.token, res.user);
       setUser(res.user);
+      setPasswordWeak(Boolean(res.passwordWeak));
+      setHasPassword(Boolean(res.hasPassword));
       return res.user;
     },
     [],
@@ -83,11 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setCachedUser(null);
     setUser(null);
+    setPasswordWeak(false);
+    setHasPassword(false);
   }, []);
 
   const value = useMemo(
-    () => ({ user, initializing, requestOtp, signIn, signUp, signOut, refresh }),
-    [user, initializing, requestOtp, signIn, signUp, signOut, refresh],
+    () => ({ user, initializing, passwordWeak, hasPassword, requestOtp, signIn, signUp, signOut, refresh }),
+    [user, initializing, passwordWeak, hasPassword, requestOtp, signIn, signUp, signOut, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

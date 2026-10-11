@@ -12,7 +12,7 @@ import { resetWelcome } from '../src/services/welcome';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, hasPassword } = useAuth();
 
   const roleLabel = user?.role === 'fundi' ? 'Fundi' : 'Client';
 
@@ -74,6 +74,13 @@ export default function SettingsScreen() {
             onPress={handleChangeNumber}
             icon={<Ionicons name="phone-portrait-outline" size={24} color={colors.primary} />}
             title="Change Number"
+          />
+          <ProfileRow
+            divider
+            onPress={() => router.push('/change-password')}
+            icon={<Ionicons name="lock-closed-outline" size={24} color={colors.primary} />}
+            title={hasPassword ? 'Change Password' : 'Set Password'}
+            subtitle={hasPassword ? undefined : 'Secure your account with a password'}
           />
           <ProfileRow
             divider

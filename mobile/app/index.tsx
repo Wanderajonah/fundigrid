@@ -7,6 +7,7 @@ import { NavigationBar } from 'expo-navigation-bar';
 import { IMAGES } from '../src/assets';
 import { isLocationAvailable } from '../src/services/location';
 import { getLocationState, hasSeenWelcome, setLocationState } from '../src/services/welcome';
+import { getToken, getUser } from '../src/services/api';
 import { colors, fonts, spacing } from '../src/theme';
 
 ExpoSplashScreen.preventAutoHideAsync();
@@ -90,6 +91,14 @@ export default function SplashScreen() {
     // been answered, or when a working location was switched off again — a
     // decline that never changed is not nagged about.
     const timer = setTimeout(async () => {
+      // A restored session skips auth entirely.
+      const token = await getToken();
+      if (token) {
+        const cached = await getUser();
+        router.replace(cached?.role === 'fundi' ? '/(fundi-tabs)' : '/(tabs)');
+        return;
+      }
+
       const seen = await hasSeenWelcome();
       if (!seen) {
         router.replace('/welcome');
@@ -100,18 +109,14 @@ export default function SplashScreen() {
 
       if (locationOk) {
         await setLocationState('available');
-        router.replace('/phone');
+        router.replace('/role');
         return;
       }
 
       await setLocationState('unavailable');
       const firstAsk = previous === null;
       const lostIt = previous === 'available';
-      router.replace(
-        firstAsk || lostIt
-          ? { pathname: '/location', params: { next: 'phone' } }
-          : '/phone'
-      );
+      router.replace(firstAsk || lostIt ? '/location' : '/role');
     }, NAVIGATE_AFTER);
     return () => {
       active = false;

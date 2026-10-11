@@ -27,8 +27,8 @@ export default function UploadRow({
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         </View>
         <Pressable onPress={onPress} style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}>
-          <Ionicons name="camera" size={14} color={colors.primary} />
           <Text style={styles.btnText}>{imageUri ? 'Change' : 'Tap to upload'}</Text>
+          <Ionicons name="chevron-forward" size={13} color={colors.primary} />
         </Pressable>
       </View>
       {imageUri && (
@@ -49,10 +49,10 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   iconBox: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: radius.sm,
-    backgroundColor: colors.lightBg,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },

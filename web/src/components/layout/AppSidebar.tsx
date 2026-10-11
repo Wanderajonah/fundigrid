@@ -47,7 +47,7 @@ export default function AppSidebar() {
 
       <aside className={`fixed left-0 top-0 bottom-0 w-[260px] bg-white border-r border-gray-100/50 z-50 transition-transform duration-300 flex flex-col ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-auto`}>
         <div className="h-[80px] flex items-center px-7 border-b border-gray-50">
-          <FundiGridLogo size="sm" />
+          <FundiGridLogo size="sm" to="/client" />
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">

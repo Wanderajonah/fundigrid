@@ -5,6 +5,7 @@ import PageHeader from './components/PageHeader';
 import StatusBadge from './components/StatusBadge';
 import { useAdminStore } from './context/AdminStore';
 import { JOB_STATUS_META, type JobStatus } from './data/meta';
+import { jobRef } from '../../lib/jobRef';
 
 const STATUSES: JobStatus[] = ['New', 'Under Review', 'Surveyor Assigned', 'Estimate Ready', 'Completed', 'Cancelled'];
 const RANGES = [
@@ -40,7 +41,7 @@ export default function JobRequestsPage() {
       if (status !== 'all' && job.status !== status) return false;
       if (range !== 'all' && daysAgo(job.date) > Number(range)) return false;
       if (!q) return true;
-      return [job.id, job.service, job.location, job.customer].some(v => v.toLowerCase().includes(q));
+      return [jobRef(job.id), job.id, job.service, job.location, job.customer].some(v => v.toLowerCase().includes(q));
     });
   }, [jobs, query, service, status, range]);
 
@@ -51,7 +52,7 @@ export default function JobRequestsPage() {
   const to = Math.min(current * PAGE_SIZE, filtered.length);
 
   const selectCls =
-    'px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all';
+    'px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all';
 
   return (
     <div className="max-w-[1360px] mx-auto">
@@ -59,12 +60,12 @@ export default function JobRequestsPage() {
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setPage(1); }}
             placeholder="Search request, customer…"
-            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-gray-300"
+            className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-slate-400"
           />
         </div>
 
@@ -78,12 +79,12 @@ export default function JobRequestsPage() {
           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl">
-          <CalendarRange size={15} className="text-gray-400" />
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl">
+          <CalendarRange size={15} className="text-slate-400" />
           <select
             value={range}
             onChange={e => { setRange(e.target.value as typeof range); setPage(1); }}
-            className="text-sm text-gray-600 bg-transparent focus:outline-none"
+            className="text-sm text-slate-600 bg-transparent focus:outline-none"
           >
             {RANGES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
           </select>
@@ -97,11 +98,11 @@ export default function JobRequestsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-7">
+      <div className="bg-white rounded-2xl border border-slate-100 p-7">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[820px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-gray-300 border-b border-gray-50">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-50">
                 <th className="font-semibold pb-4 pr-4">ID</th>
                 <th className="font-semibold pb-4 pr-4">Service</th>
                 <th className="font-semibold pb-4 pr-4">Location</th>
@@ -111,21 +112,21 @@ export default function JobRequestsPage() {
                 <th className="font-semibold pb-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">Loading requests…</td>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">Loading requests…</td>
                 </tr>
               )}
               {!loading && slice.map(job => {
                 const meta = JOB_STATUS_META[job.status];
                 return (
-                  <tr key={job.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-4 pr-4 font-semibold text-gray-900">{job.id}</td>
-                    <td className="py-4 pr-4 text-gray-700">{job.service}</td>
-                    <td className="py-4 pr-4 text-gray-500">{job.location}</td>
-                    <td className="py-4 pr-4 text-gray-500">{job.customer}</td>
-                    <td className="py-4 pr-4 text-gray-400 whitespace-nowrap">{job.date}</td>
+                  <tr key={job.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-4 pr-4 font-semibold text-slate-900">{jobRef(job.id)}</td>
+                    <td className="py-4 pr-4 text-slate-700">{job.service}</td>
+                    <td className="py-4 pr-4 text-slate-500">{job.location}</td>
+                    <td className="py-4 pr-4 text-slate-500">{job.customer}</td>
+                    <td className="py-4 pr-4 text-slate-400 whitespace-nowrap">{job.date}</td>
                     <td className="py-4 pr-4"><StatusBadge label={meta.label} cls={meta.cls} dot={meta.dot} /></td>
                     <td className="py-4 text-right">
                       <Link to={`/admin/requests/${job.id}`} className="text-sm font-semibold text-primary hover:text-primary-dark">View</Link>
@@ -135,7 +136,7 @@ export default function JobRequestsPage() {
               })}
               {!loading && slice.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     {jobs.length === 0 ? 'No requests are waiting on a surveyor yet.' : 'No requests match these filters.'}
                   </td>
                 </tr>
@@ -144,22 +145,22 @@ export default function JobRequestsPage() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between mt-6 pt-5 border-t border-gray-50">
-          <p className="text-xs text-gray-400">Showing {from}–{to} of {filtered.length}</p>
+        <div className="flex items-center justify-between mt-6 pt-5 border-t border-slate-50">
+          <p className="text-xs text-slate-400">Showing {from}–{to} of {filtered.length}</p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={current === 1}
-              className="p-2 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-900 disabled:opacity-40 disabled:hover:text-gray-400 transition-colors"
+              className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-900 disabled:opacity-40 disabled:hover:text-slate-400 transition-colors"
               aria-label="Previous page"
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="text-xs font-semibold text-gray-600 px-2">{current} / {pages}</span>
+            <span className="text-xs font-semibold text-slate-600 px-2">{current} / {pages}</span>
             <button
               onClick={() => setPage(p => Math.min(pages, p + 1))}
               disabled={current === pages}
-              className="p-2 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-900 disabled:opacity-40 disabled:hover:text-gray-400 transition-colors"
+              className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-900 disabled:opacity-40 disabled:hover:text-slate-400 transition-colors"
               aria-label="Next page"
             >
               <ChevronRight size={16} />

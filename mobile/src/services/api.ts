@@ -1,11 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE = (
-  process.env.EXPO_PUBLIC_API_URL || 'http://192.168.42.156:5000/api'
-).replace(/\/+$/, '');
+import { apiBase, apiCandidates, promoteApiBase } from './config';
 
 type RequestOptions = {
-  method?: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
   token?: string;
 };
@@ -21,61 +18,153 @@ async function request<T = any>(path: string, options: RequestOptions = {}): Pro
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch {
-    throw new Error(
-      `Cannot reach server at ${API_BASE}. ` +
-        'Make sure the backend is running and EXPO_PUBLIC_API_URL in mobile/.env.local matches this machine\'s IP.'
-    );
-  }
+  const payload = body ? JSON.stringify(body) : undefined;
+  const bases = [apiBase(), ...apiCandidates()].filter(
+    (base, i, arr) => arr.indexOf(base) === i
+  );
 
-  let data: any = {};
-  try {
-    data = await res.json();
-  } catch {
-    if (!res.ok) {
-      throw new Error(`Request failed with status ${res.status}`);
+  for (const base of bases) {
+    let res: Response;
+    try {
+      res = await fetch(`${base}${path}`, {
+        method,
+        headers,
+        body: payload,
+      });
+    } catch {
+      continue;
     }
-    return data as T;
+
+    promoteApiBase(base);
+
+    let data: any = {};
+    try {
+      data = await res.json();
+    } catch {
+      if (!res.ok) {
+        throw apiError(`Request failed with status ${res.status}`, { status: res.status });
+      }
+      return data as T;
+    }
+
+    if (!res.ok) {
+      throw apiError(data.message || data.error || 'Request failed', {
+        code: data.code,
+        status: res.status,
+        attemptsRemaining: data.attemptsRemaining,
+        retryAfterSeconds: data.retryAfterSeconds,
+      });
+    }
+
+    return data;
   }
 
-  if (!res.ok) {
-    throw new Error(data.message || data.error || 'Request failed');
-  }
+  throw apiError(
+    `Cannot reach server. Tried ${bases.join(', ')}. ` +
+      'Make sure the backend is running and this device is on the same network.',
+    { code: 'NETWORK' }
+  );
+}
 
-  return data;
+// Errors carry the server's machine-readable `code` plus lockout extras so
+// screens can tell "wrong password, 3 tries left" from "locked for 10 minutes".
+export type ApiError = Error & {
+  code?: string;
+  status?: number;
+  attemptsRemaining?: number;
+  retryAfterSeconds?: number;
+};
+
+function apiError(
+  message: string,
+  extra: Partial<Pick<ApiError, 'code' | 'status' | 'attemptsRemaining' | 'retryAfterSeconds'>> = {}
+): ApiError {
+  const err = new Error(message) as ApiError;
+  Object.assign(err, extra);
+  return err;
 }
 
 // ── Auth ──
 
-export async function sendOtp(phone: string, purpose: 'register' | 'login' = 'register') {
+export type Session = {
+  token: string;
+  user: any;
+  passwordWeak?: boolean;
+  hasPassword?: boolean;
+  /** Sign-up only: true when the number was already registered. */
+  accountExisted?: boolean;
+};
+
+async function saveSession(data: Session) {
+  await AsyncStorage.setItem('token', data.token);
+  await AsyncStorage.setItem('user', JSON.stringify(data.user));
+  return data;
+}
+
+export async function sendOtp(phone: string, purpose: 'register' | 'reset' = 'register') {
   return request('/auth/otp/send', { method: 'POST', body: { phone, purpose } });
 }
 
-export async function verifyOtpRegister(phone: string, code: string, role: string) {
+// Phone sign-up: proves the number and creates the account in one call.
+// Everything else the account needs (name, password, role) rides along.
+export type RegisterInput = {
+  phone: string;
+  code: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+  password?: string;
+  email?: string;
+};
+
+export async function verifyOtpRegister(input: RegisterInput) {
   const data = await request('/auth/otp/verify-register', {
     method: 'POST',
-    body: { phone, code, role },
+    body: {
+      phone: input.phone,
+      code: input.code,
+      role: input.role,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      password: input.password,
+      email: input.email,
+    },
   });
-  await AsyncStorage.setItem('token', data.token);
-  await AsyncStorage.setItem('user', JSON.stringify(data.user));
-  return data;
+  return saveSession(data);
 }
 
-export async function verifyOtpLogin(phone: string, code: string) {
-  const data = await request('/auth/otp/verify-login', {
+// Password sign-in. On `PASSWORD_NOT_SET` the screen sends a `reset` OTP
+// instead; on `LOCKED` / `PASSWORD_BLOCKED` it points at Forgot Password.
+export async function loginWithPassword(input: { phone?: string; email?: string; password: string }) {
+  const data = await request('/auth/login', { method: 'POST', body: input });
+  return saveSession(data);
+}
+
+export async function forgotPassword(phone: string) {
+  return request('/auth/password/forgot', { method: 'POST', body: { phone } });
+}
+
+export async function resetPassword(phone: string, code: string, password: string) {
+  const data = await request('/auth/password/reset', {
     method: 'POST',
-    body: { phone, code },
+    body: { phone, code, password },
   });
-  await AsyncStorage.setItem('token', data.token);
-  await AsyncStorage.setItem('user', JSON.stringify(data.user));
-  return data;
+  return saveSession(data);
+}
+
+// Set or change the password of the signed-in account. `currentPassword` is
+// only required when one already exists.
+export async function setPassword(
+  token: string,
+  password: string,
+  currentPassword?: string
+) {
+  const data = await request('/auth/password', {
+    method: 'POST',
+    body: { password, currentPassword },
+    token,
+  });
+  return saveSession(data);
 }
 
 export async function getToken() {

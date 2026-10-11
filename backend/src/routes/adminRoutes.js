@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcryptjs");
 const { protect } = require("../middleware/auth");
 const Booking = require("../models/Booking");
 const User = require("../models/User");
@@ -235,7 +236,8 @@ router.post("/users", protect, requireAdmin, async (req, res, next) => {
     const firstName = String(req.body.firstName || "").trim();
     const lastName = String(req.body.lastName || "").trim();
     const phone = normalisePhone(req.body.phone);
-    const email = String(req.body.email || "").trim() || null;
+    const email = String(req.body.email || "").trim().toLowerCase() || null;
+    const password = String(req.body.password || "");
     const role = ["customer", "fundi", "surveyor", "admin"].includes(req.body.role)
       ? req.body.role
       : "customer";
@@ -252,9 +254,20 @@ router.post("/users", protect, requireAdmin, async (req, res, next) => {
     if (phone.length < 9) {
       return res.status(400).json({ success: false, message: "Enter a valid phone number" });
     }
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required — it is what they sign in with" });
+    }
+    const policy = require("../services/passwordPolicy").validatePassword(password);
+    if (!policy.ok) {
+      return res.status(400).json({ success: false, message: policy.message });
+    }
     const existing = await User.findOne({ phone });
     if (existing) {
       return res.status(409).json({ success: false, message: "That phone number already has an account" });
+    }
+    const sameEmail = await User.findOne({ email });
+    if (sameEmail) {
+      return res.status(409).json({ success: false, message: "That email already has an account" });
     }
 
     const user = await User.create({
@@ -262,6 +275,7 @@ router.post("/users", protect, requireAdmin, async (req, res, next) => {
       lastName,
       phone,
       email,
+      password: bcrypt.hashSync(password, 10),
       role,
       status: "active",
       phoneVerified: true,
@@ -415,6 +429,110 @@ router.patch("/fundis/:id", protect, requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Fundi verification queue ─────────────────────────────────────────────
+// The fundi's paperwork (ID + certificate) and referees live on their user
+// row; the review outcome lives on fundiprofiles. One join gives the queue.
+
+const VERIFICATION_STATUSES = ["pending", "verified", "rejected", "unverified"];
+
+router.get("/verifications", protect, requireAdmin, async (req, res, next) => {
+  try {
+    const status = String(req.query.status || "pending");
+    if (!VERIFICATION_STATUSES.includes(status)) {
+      return res.status(400).json({ success: false, message: "Unknown verification status" });
+    }
+
+    const { getSupabase } = require("../config/supabase");
+    const sb = getSupabase();
+    const [usersRes, profilesRes] = await Promise.all([
+      sb.from("users")
+        .select('id, "firstName", "lastName", phone, email, skills, district, locationLabel, bio, experience, "verificationDocs", referees, created_at')
+        .eq("role", "fundi")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      sb.from("fundiprofiles")
+        .select('userId, skills, "verificationStatus", verified, "verificationNotes", "requestedAt", "reviewedAt"'),
+    ]);
+    if (usersRes.error) throw usersRes.error;
+    if (profilesRes.error) throw profilesRes.error;
+
+    const byUser = new Map((profilesRes.data || []).map((p) => [p.userId, p]));
+    const rows = (usersRes.data || []).map((u) => {
+      const profile = byUser.get(u.id);
+      return {
+        userId: u.id,
+        name: fullName(u) || u.phone || "Fundi",
+        phone: u.phone || "",
+        email: u.email || "",
+        trade: (Array.isArray(u.skills) && u.skills[0]) || profile?.skills?.[0] || "",
+        skills: [
+          ...new Set([...(u.skills || []), ...(profile?.skills || [])].map((s) => String(s || "").trim()).filter(Boolean)),
+        ],
+        location: u.district || shortLabel(u.locationLabel) || "Uganda",
+        bio: profile?.bio || u.bio || "",
+        experience: Number(profile?.experience ?? u.experience ?? 0),
+        docs: Array.isArray(u.verificationDocs) ? u.verificationDocs : [],
+        referees: Array.isArray(u.referees) ? u.referees : [],
+        status: profile?.verificationStatus || (u.verificationDocs?.length ? "pending" : "unverified"),
+        verified: Boolean(profile?.verified),
+        note: profile?.verificationNotes || "",
+        requestedAt: profile?.requestedAt || null,
+        reviewedAt: profile?.reviewedAt || null,
+        createdAt: u.created_at || null,
+      };
+    });
+
+    const filtered = status === "unverified" ? rows : rows.filter((r) => r.status === status);
+    res.json({ success: true, verifications: filtered });
+  } catch (err) { next(err); }
+});
+
+// Approve (the fundi goes live on the client map) or send it back with a note
+// the fundi sees on their own profile.
+router.post("/verifications/:userId", protect, requireAdmin, async (req, res, next) => {
+  try {
+    const decision = String(req.body.decision || "");
+    if (decision !== "approve" && decision !== "reject") {
+      return res.status(400).json({ success: false, message: "Decision must be approve or reject" });
+    }
+    const note = String(req.body.note || "").trim();
+    if (decision === "reject" && !note) {
+      return res.status(400).json({ success: false, message: "Tell the fundi what needs fixing" });
+    }
+
+    const user = await User.findById(req.params.userId);
+    if (!user || user.role !== "fundi") {
+      return res.status(404).json({ success: false, message: "Fundi not found" });
+    }
+
+    const reviewedAt = new Date().toISOString();
+    const patch = {
+      userId: user.id,
+      verificationStatus: decision === "approve" ? "verified" : "rejected",
+      verified: decision === "approve",
+      verificationNotes: note,
+      reviewedAt,
+      ...(decision === "approve" ? { requestedAt: reviewedAt } : {}),
+    };
+    const profile = await FundiProfile.findOneAndUpdate({ userId: user.id }, patch, { upsert: true, new: true });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: "Fundi profile not found" });
+    }
+
+    res.json({
+      success: true,
+      verification: {
+        userId: user.id,
+        name: fullName(user) || user.phone || "Fundi",
+        status: patch.verificationStatus,
+        verified: patch.verified,
+        note: patch.verificationNotes,
+        reviewedAt,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
 // ── Bookings ─────────────────────────────────────────────────────────────
 
 function bookingPrice(booking) {
@@ -541,6 +659,27 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
       }
     });
 
+    // Bookings created on each of the last seven days, oldest first: the
+    // data behind the dashboard's "Bookings Trend" line chart.
+    const trend = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date(today);
+      day.setDate(today.getDate() - i);
+      trend.push({
+        label: day.toLocaleDateString("en-GB", { weekday: "short" }),
+        value: 0,
+        start: day.getTime(),
+      });
+    }
+    rows.forEach((row) => {
+      const at = row.created_at ? Date.parse(row.created_at) : NaN;
+      if (Number.isNaN(at)) return;
+      const bucket = trend.find((b) => at >= b.start && at < b.start + 86400000);
+      if (bucket) bucket.value += 1;
+    });
+
     res.json({
       success: true,
       stats: {
@@ -563,6 +702,7 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
           completed: stage.completed,
           cancelled: stage.cancelled,
           completedValue,
+          trend: trend.map(({ label, value }) => ({ label, value })),
         },
       },
     });

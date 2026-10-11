@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Building2, Bell, CreditCard, Server, Check, Loader2 } from 'lucide-react';
 import PageHeader from './components/PageHeader';
+import ChangePasswordCard from '../../components/ChangePasswordCard';
 import {
   ApiError,
   getPlatformSettings,
@@ -27,15 +28,15 @@ const TOGGLES = [
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-sm font-semibold text-gray-900 mb-2">{label}</span>
+      <span className="block text-sm font-semibold text-slate-900 mb-2">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-gray-300 mt-1.5">{hint}</span>}
+      {hint && <span className="block text-xs text-slate-400 mt-1.5">{hint}</span>}
     </label>
   );
 }
 
 const inputCls =
-  'w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all';
+  'w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all';
 
 type Values = {
   adminName: string;
@@ -144,7 +145,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-[1360px] mx-auto py-24 text-center text-gray-400">
+      <div className="max-w-[1360px] mx-auto py-24 text-center text-slate-400">
         <Loader2 size={18} className="inline animate-spin mr-2" /> Loading settings…
       </div>
     );
@@ -170,16 +171,16 @@ export default function SettingsPage() {
                 key={s.key}
                 onClick={() => setSection(s.key)}
                 className={`w-full text-left p-4 rounded-2xl border transition-all ${
-                  active ? 'bg-white border-primary/40 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-200'
+                  active ? 'bg-white border-primary/40 shadow-sm' : 'bg-white border-slate-100 hover:border-slate-200'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-primary/15 text-primary-dark' : 'bg-gray-50 text-gray-400'}`}>
+                  <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-primary/15 text-primary-dark' : 'bg-slate-50 text-slate-400'}`}>
                     <Icon size={16} />
                   </span>
                   <span className="min-w-0">
-                    <span className={`block text-sm font-semibold ${active ? 'text-gray-900' : 'text-gray-600'}`}>{s.label}</span>
-                    <span className="block text-xs text-gray-300 truncate">{s.desc}</span>
+                    <span className={`block text-sm font-semibold ${active ? 'text-slate-900' : 'text-slate-600'}`}>{s.label}</span>
+                    <span className="block text-xs text-slate-400 truncate">{s.desc}</span>
                   </span>
                 </span>
               </button>
@@ -187,17 +188,17 @@ export default function SettingsPage() {
           })}
         </nav>
 
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 p-7">
-          <div className="flex items-center justify-between gap-4 mb-7 pb-5 border-b border-gray-50">
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="flex items-center justify-between gap-4 mb-7 pb-5 border-b border-slate-50">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">{SECTIONS.find(s => s.key === section)?.label}</h2>
-              <p className="text-sm text-gray-400 mt-0.5">{SECTIONS.find(s => s.key === section)?.desc}</p>
+              <h2 className="text-lg font-bold text-slate-900">{SECTIONS.find(s => s.key === section)?.label}</h2>
+              <p className="text-sm text-slate-400 mt-0.5">{SECTIONS.find(s => s.key === section)?.desc}</p>
             </div>
             <button
               onClick={() => void save()}
               disabled={saving}
               className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 ${
-                saved ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-900 text-white hover:bg-black'
+                saved ? 'bg-emerald-50 text-emerald-600' : 'bg-navy-900 text-white hover:bg-navy-800'
               }`}
             >
               {saved ? <><Check size={15} /> Saved</> : saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : 'Save changes'}
@@ -211,13 +212,13 @@ export default function SettingsPage() {
               <Field label="Service radius" hint="Maximum distance (km) a fundi is matched to a job">
                 <div className="relative">
                   <input className={inputCls} value={values.serviceRadius} onChange={set('serviceRadius')} inputMode="decimal" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-300">km</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400">km</span>
                 </div>
               </Field>
               <Field label="Platform commission" hint="Deducted from each completed job">
                 <div className="relative">
                   <input className={inputCls} value={values.commissionRate} onChange={set('commissionRate')} inputMode="decimal" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-300">%</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
                 </div>
               </Field>
             </div>
@@ -226,17 +227,17 @@ export default function SettingsPage() {
           {section === 'notifications' && (
             <div className="space-y-1">
               {TOGGLES.slice(0, 4).map(t => (
-                <div key={t.key} className="flex items-center justify-between gap-5 py-4 border-b border-gray-50 last:border-0">
+                <div key={t.key} className="flex items-center justify-between gap-5 py-4 border-b border-slate-50 last:border-0">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{t.label}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{t.desc}</p>
+                    <p className="text-sm font-semibold text-slate-900">{t.label}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
                   </div>
                   <button
                     role="switch"
                     aria-checked={toggles[t.key]}
                     aria-label={t.label}
                     onClick={() => setToggles(prev => ({ ...prev, [t.key]: !prev[t.key] }))}
-                    className={`w-11 h-6 rounded-full shrink-0 transition-colors ${toggles[t.key] ? 'bg-primary' : 'bg-gray-200'}`}
+                    className={`w-11 h-6 rounded-full shrink-0 transition-colors ${toggles[t.key] ? 'bg-primary' : 'bg-slate-200'}`}
                   >
                     <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${toggles[t.key] ? 'translate-x-5.5 ml-0.5' : 'translate-x-0.5'}`} />
                   </button>
@@ -258,7 +259,7 @@ export default function SettingsPage() {
               <Field label="Client fee" hint="Added to every booking the client pays">
                 <div className="relative">
                   <input className={inputCls} value={values.clientFeeRate} onChange={set('clientFeeRate')} inputMode="decimal" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-300">%</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
                 </div>
               </Field>
               <Field label="Minimum job amount"><input className={inputCls} value={values.minJobAmount} onChange={set('minJobAmount')} inputMode="numeric" /></Field>
@@ -277,17 +278,17 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-1">
                 {TOGGLES.slice(4).map(t => (
-                  <div key={t.key} className="flex items-center justify-between gap-5 py-4 border-b border-gray-50 last:border-0">
+                  <div key={t.key} className="flex items-center justify-between gap-5 py-4 border-b border-slate-50 last:border-0">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{t.label}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{t.desc}</p>
+                      <p className="text-sm font-semibold text-slate-900">{t.label}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
                     </div>
                     <button
                       role="switch"
                       aria-checked={toggles[t.key]}
                       aria-label={t.label}
                       onClick={() => setToggles(prev => ({ ...prev, [t.key]: !prev[t.key] }))}
-                      className={`w-11 h-6 rounded-full shrink-0 transition-colors ${toggles[t.key] ? 'bg-primary' : 'bg-gray-200'}`}
+                      className={`w-11 h-6 rounded-full shrink-0 transition-colors ${toggles[t.key] ? 'bg-primary' : 'bg-slate-200'}`}
                     >
                       <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${toggles[t.key] ? 'translate-x-5.5 ml-0.5' : 'translate-x-0.5'}`} />
                     </button>
@@ -297,6 +298,10 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-8 max-w-[720px]">
+        <ChangePasswordCard showWeakHint />
       </div>
     </div>
   );

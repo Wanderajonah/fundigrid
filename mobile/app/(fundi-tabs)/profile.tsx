@@ -34,6 +34,16 @@ export default function FundiProfileScreen() {
     .slice(0, 2)
     .toUpperCase();
   const trades = user?.skills?.join(' • ') || 'No trades set';
+  const verificationStatus = user?.verificationStatus || 'unverified';
+  const verified = verificationStatus === 'verified';
+  const verificationSubtitle =
+    verificationStatus === 'verified'
+      ? 'Verified — you appear on the client map'
+      : verificationStatus === 'pending'
+        ? 'Documents under review'
+        : verificationStatus === 'rejected'
+          ? 'Changes needed — tap to resubmit'
+          : 'Upload your ID and trade certificate';
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -136,7 +146,7 @@ export default function FundiProfileScreen() {
         <View style={styles.statsCard}>
           <View style={styles.statsTop}>
             <RatingStars rating={user?.rating || 0} showCount count={user?.reviewCount || 0} />
-            <VerifiedBadge />
+            <VerifiedBadge verified={verified} />
           </View>
           <Text style={styles.trades}>{trades}</Text>
         </View>
@@ -177,12 +187,26 @@ export default function FundiProfileScreen() {
           />
           <ProfileRow
             divider
+            onPress={() => router.push({ pathname: '/verification', params: { role: 'fundi' } })}
+            icon={
+              <Ionicons
+                name={verified ? 'shield-checkmark-outline' : 'shield-outline'}
+                size={24}
+                color={verified ? colors.success : colors.primary}
+              />
+            }
+            title="Verification"
+            subtitle={verificationSubtitle}
+          />
+          <ProfileRow
+            divider
             onPress={() => router.push('/(fundi-tabs)/nearby-jobs')}
             icon={<Ionicons name="briefcase-outline" size={24} color={colors.primary} />}
             title="My Jobs"
           />
           <ProfileRow
             divider
+            onPress={() => router.push('/(fundi-tabs)/earnings')}
             icon={<Ionicons name="wallet-outline" size={24} color={colors.primary} />}
             title="Earnings"
           />

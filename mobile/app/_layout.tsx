@@ -43,6 +43,10 @@ export default function RootLayout() {
         <Stack.Screen name="location" />
         <Stack.Screen name="role" />
         <Stack.Screen name="phone" />
+        <Stack.Screen name="signup" />
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password" />
+        <Stack.Screen name="change-password" />
         <Stack.Screen name="otp" />
         <Stack.Screen name="profile-setup" />
         <Stack.Screen name="trade-details" />

@@ -98,7 +98,11 @@ async function listFundis({ lat, lng, radius, category, area } = {}) {
   if (profileError) throw profileError;
 
   const byUser = new Map((profiles || []).map((p) => [p.userId, p]));
-  let rows = (data || []).map((u) => toFundi(u, byUser.get(u.id)));
+  // Clients only meet fundis an admin has approved — the review queue in the
+  // admin console is what puts someone on this list.
+  let rows = (data || [])
+    .map((u) => toFundi(u, byUser.get(u.id)))
+    .filter((f) => f.verified);
 
   if (category) {
     rows = rows.filter((f) => matchesCategory(f.skills, category));

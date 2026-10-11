@@ -59,6 +59,14 @@ alter table users add column if not exists "serviceRadius" double precision not 
 alter table users add column if not exists "verificationDocs" text[] not null default '{}';
 alter table users add column if not exists "referees" jsonb not null default '[]'::jsonb;
 
+-- Password sign-in lockout (mobile). 5 wrong attempts lock the account for
+-- 10 minutes; 3 such batches leave `passwordBlocked` set until the owner
+-- resets through the forgot-password flow.
+alter table users add column if not exists "failedLoginAttempts" integer not null default 0;
+alter table users add column if not exists "lockedUntil"        timestamptz;
+alter table users add column if not exists "lockoutBatches"     integer not null default 0;
+alter table users add column if not exists "passwordBlocked"    boolean not null default false;
+
 -- Quantity surveyors are a fourth role. `create table if not exists` will not
 -- touch the check constraint on a database that already exists, so replace it.
 do $$
@@ -349,7 +357,7 @@ create index if not exists transactions_user_idx on transactions ("userId", crea
 create table if not exists otps (
   id          text primary key default gen_random_uuid()::text,
   phone       text not null,
-  purpose     text not null check (purpose in ('register','login')),
+  purpose     text not null check (purpose in ('register','reset')),
   "codeHash"  text not null,
   "expiresAt" timestamptz not null,
   attempts    double precision not null default 0,
@@ -358,6 +366,12 @@ create table if not exists otps (
   updated_at  timestamptz not null default now(),
   unique (phone, purpose)
 );
+
+-- Older installs still allow only ('register','login'); OTP is now used for
+-- phone verification (register) and password reset (reset) only.
+delete from otps where purpose not in ('register','reset');
+alter table otps drop constraint if exists otps_purpose_check;
+alter table otps add constraint otps_purpose_check check (purpose in ('register','reset'));
 
 -- ============================================================
 -- email_otps

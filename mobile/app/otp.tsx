@@ -7,11 +7,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../src/contexts/AuthContext';
+import { goBackSafe } from '../src/services/navigation';
+import { updateLocation, updateProfile } from '../src/services/api';
+import { takePendingProfile } from '../src/services/pendingProfile';
 
 export default function OtpScreen() {
   const router = useRouter();
-  const { role, phone, purpose } = useLocalSearchParams<{ role?: string; phone?: string; purpose?: string }>();
-  const { signIn, signUp } = useAuth();
+  const { role, phone, purpose, firstName, lastName, password } = useLocalSearchParams<{
+    role?: string;
+    phone?: string;
+    purpose?: string;
+    firstName?: string;
+    lastName?: string;
+    password?: string;
+  }>();
+  const { signUp, refreshUser, signOut } = useAuth();
   const [code, setCode] = useState(['', '', '', '']);
   const [seconds, setSeconds] = useState(300);
   const [loading, setLoading] = useState(false);
@@ -78,30 +88,74 @@ export default function OtpScreen() {
     if (loading) return;
     setLoading(true);
     try {
-      const isRegister = purpose === 'register';
-      let signedIn;
-      if (isRegister) {
-        await signUp(phone ?? '', otpCode, role ?? 'fundi');
-      } else {
-        signedIn = await signIn(phone ?? '', otpCode);
-        // An account can exist before its owner ever filled in their details
-        // (registered by number only, or created on an older build). Never
-        // drop them on the tabs with an empty name — finish setup first.
-        if (!signedIn.user?.name?.trim()) {
-          router.replace({ pathname: '/profile-setup', params: { role, phone } });
-          return;
+      // The forgot-password flow hands the code to the new-password screen
+      // rather than consuming it here, so that screen owns both checks.
+      if (purpose === 'reset') {
+        router.replace({ pathname: '/reset-password', params: { role, phone, code: otpCode } });
+        return;
+      }
+
+      const res = await signUp({
+        phone: phone ?? '',
+        code: otpCode,
+        role: role ?? 'client',
+        firstName,
+        lastName,
+        password,
+      });
+      const signedUp = res.user;
+      const landingRole = signedUp?.role || role || 'client';
+
+      // The number already belongs to a password-protected account — send them
+      // to sign in instead of silently signing them in behind a new "account".
+      // `accountExisted` is the discriminator: a brand-new account also comes
+      // back with `hasPassword` (the sign-up form just set one).
+      if (res.accountExisted && res.hasPassword && signedUp?.name?.trim()) {
+        takePendingProfile();
+        // The session the server handed out must not survive this refusal —
+        // otherwise the app is signed in behind a login screen.
+        await signOut();
+        Alert.alert(
+          'Account already exists',
+          'This number is already registered. Sign in with your password instead.',
+          [{ text: 'OK', onPress: () => router.replace({ pathname: '/phone', params: { role: landingRole } }) }]
+        );
+        return;
+      }
+
+      // The profile collected on step ① (photo, gender, location) rides along
+      // now that there is a session to put it on. Best effort: the account is
+      // already created, and Settings → Edit profile can fix anything later.
+      const pending = takePendingProfile();
+      if (res.token && pending) {
+        try {
+          await updateProfile(res.token, {
+            gender: pending.gender,
+            locationLabel: pending.locationLabel,
+            profilePhoto: pending.profilePhoto,
+          });
+          if (pending.lat != null && pending.lng != null) {
+            await updateLocation(res.token, {
+              lat: pending.lat,
+              lng: pending.lng,
+              address: pending.locationLabel || '',
+            });
+          }
+        } catch {
+          // Profile extras are nice-to-have; never block the way home.
         }
+        await refreshUser(res.token);
       }
-      if (isRegister) {
-        router.replace({ pathname: '/profile-setup', params: { role, phone } });
-      } else {
-        // Returning users skip role selection, so trust the account's own
-        // role over the role param (which defaults to 'client').
-        const landingRole = signedIn?.user?.role || role || 'client';
-        router.replace(landingRole === 'fundi' ? '/(fundi-tabs)' : '/(tabs)');
+
+      // Straight home. Fundis stop once at trade details so their profile has
+      // skills on it; everything else lives in Settings → Edit profile.
+      if (landingRole === 'fundi') {
+        router.replace({ pathname: '/trade-details', params: { role: 'fundi' } });
+        return;
       }
+      router.replace('/(tabs)');
     } catch (e: any) {
-      Alert.alert('Verification failed', e.message || 'Invalid OTP. Please try again.');
+      Alert.alert('Verification failed', e.message || 'Invalid code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,14 +166,14 @@ export default function OtpScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}>
+        <Pressable onPress={() => goBackSafe('/phone')} hitSlop={12} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}>
           <Ionicons name="chevron-back" size={24} color={colors.ink} />
         </Pressable>
         <Image source={IMAGES.logoLight} style={styles.logo} resizeMode="contain" />
       </View>
 
       <View style={styles.body}>
-        <Text style={styles.h1}>Verify Your Number</Text>
+        <Text style={styles.h1}>{purpose === 'reset' ? 'Verify It’s You' : 'Verify Your Number'}</Text>
         <Text style={styles.sub}>Enter the 4-digit code sent to{'\n'}{displayPhone}</Text>
 
         <View style={styles.boxes}>
@@ -155,7 +209,7 @@ export default function OtpScreen() {
 
         <View style={styles.bottom}>
           <PrimaryButton title="Verify" onPress={() => handleVerify()} loading={loading} />
-          <Pressable onPress={() => router.back()} style={styles.change}>
+          <Pressable onPress={() => goBackSafe('/phone')} style={styles.change}>
             <Text style={styles.changeText}>Change number</Text>
           </Pressable>
         </View>

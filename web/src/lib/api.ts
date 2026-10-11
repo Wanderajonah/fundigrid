@@ -9,10 +9,13 @@ const USER_KEY = 'fundigrid.user';
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Machine-readable reason, e.g. PASSWORD_NOT_SET or LOCKED. */
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -160,22 +163,37 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       setToken(null);
       setCachedUser(null);
     }
-    throw new ApiError(res.status, payload?.message || `Request failed (${res.status})`);
+    throw new ApiError(res.status, payload?.message || `Request failed (${res.status})`, payload?.code);
   }
   return payload as T;
 }
 
-export function sendOtp(phone: string, purpose: 'login' | 'register' = 'login') {
+export function sendOtp(phone: string, purpose: 'register' | 'reset' = 'register') {
   return request<{ success: boolean; code?: string; message?: string }>(
     '/auth/otp/send',
     { method: 'POST', body: { phone, purpose }, auth: false },
   );
 }
 
-export function verifyLogin(input: { phone: string; code: string }) {
-  return request<{ success: boolean; token: string; user: SessionUser }>(
-    '/auth/otp/verify-login',
-    { method: 'POST', body: input, auth: false },
+export function login(input: { email: string; password: string }) {
+  return request<{
+    success: boolean;
+    token: string;
+    user: SessionUser;
+    passwordWeak?: boolean;
+    hasPassword?: boolean;
+  }>('/auth/login', {
+    method: 'POST',
+    body: input,
+    auth: false,
+  });
+}
+
+/** Set or change the signed-in account's password. */
+export function changePassword(currentPassword: string | undefined, password: string) {
+  return request<{ success: boolean; token: string; user: SessionUser; passwordWeak?: boolean }>(
+    '/auth/password',
+    { method: 'POST', body: { currentPassword, password } },
   );
 }
 
@@ -184,16 +202,25 @@ export function verifyRegister(input: {
   code: string;
   name?: string;
   email?: string;
+  password?: string;
   role?: Role;
 }) {
-  return request<{ success: boolean; token: string; user: SessionUser }>(
+  return request<{
+    success: boolean;
+    token: string;
+    user: SessionUser;
+    passwordWeak?: boolean;
+    hasPassword?: boolean;
+  }>(
     '/auth/otp/verify-register',
     { method: 'POST', body: input, auth: false },
   );
 }
 
 export function getProfile() {
-  return request<{ success: boolean; user: SessionUser }>('/users/profile');
+  return request<{ success: boolean; user: SessionUser; hasPassword?: boolean; passwordWeak?: boolean }>(
+    '/users/profile',
+  );
 }
 
 export function updateProfile(patch: Partial<SessionUser>) {
@@ -434,7 +461,8 @@ export interface CreateUserInput {
   firstName: string;
   lastName: string;
   phone: string;
-  email?: string;
+  email: string;
+  password: string;
   role: RawRole;
   skills?: string;
   district?: string;
@@ -500,6 +528,7 @@ export interface AdminStats {
     completed: number;
     cancelled: number;
     completedValue: number;
+    trend: { label: string; value: number }[];
   };
 }
 
@@ -554,6 +583,44 @@ export function updateAdminFundi(id: string, patch: { status: 'active' | 'inacti
 
 export function getAdminBookings() {
   return request<{ success: boolean; bookings: AdminBooking[] }>('/admin/bookings');
+}
+
+export type VerificationStatus = 'pending' | 'verified' | 'rejected' | 'unverified';
+
+export interface AdminVerification {
+  userId: string;
+  name: string;
+  phone: string;
+  email: string;
+  trade: string;
+  skills: string[];
+  location: string;
+  bio: string;
+  experience: number;
+  docs: string[];
+  referees: { name: string; phone: string; relationship?: string }[];
+  status: VerificationStatus;
+  verified: boolean;
+  note: string;
+  requestedAt: string | null;
+  reviewedAt: string | null;
+  createdAt: string | null;
+}
+
+export function getAdminVerifications(status: VerificationStatus = 'pending') {
+  return request<{ success: boolean; verifications: AdminVerification[] }>(
+    `/admin/verifications?status=${encodeURIComponent(status)}`,
+  );
+}
+
+export function reviewAdminVerification(
+  userId: string,
+  decision: { decision: 'approve' | 'reject'; note?: string },
+) {
+  return request<{ success: boolean; verification: AdminVerification }>(
+    `/admin/verifications/${encodeURIComponent(userId)}`,
+    { method: 'POST', body: decision },
+  );
 }
 
 export function getAdminStats() {

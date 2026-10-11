@@ -5,6 +5,12 @@
   --color-primary: #F5A623;
   --color-primary-dark: #E08E0B;
   --color-primary-soft: #FEF1DC;
+  /* Admin + quantity surveyor chrome: cool navy surfaces, slate neutrals */
+  --color-navy-950: #0A1B33;
+  --color-navy-900: #10294D;
+  --color-navy-800: #173B6B;
+  --color-navy-700: #1E4E8C;
+  --color-surface: #F4F7FB;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
@@ -14,4 +20,63 @@
   body { font-family: var(--font-sans); color: #111; background: #FAFAFA; line-height: 1.6; }
   ::selection { background: var(--color-primary); color: #111; }
   input:focus, textarea:focus, select:focus { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+}
+
+/* ── Admin + surveyor console: scrollbars are invisible until the pointer
+   hovers the scrolling area (sidebar, tables, panels). `scrollbar-width` /
+   `scrollbar-color` inherit, so the console root sets the default and every
+   descendant picks it up. */
+.theme-admin {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.theme-admin ::-webkit-scrollbar,
+html:has(.theme-admin)::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.theme-admin ::-webkit-scrollbar-track,
+html:has(.theme-admin)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.theme-admin ::-webkit-scrollbar-thumb,
+html:has(.theme-admin)::-webkit-scrollbar-thumb {
+  background: transparent;
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+/* Reveal the thumb only while hovering the scroll area itself. */
+.theme-admin *:hover::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  background-clip: content-box;
+}
+
+.theme-admin *:hover::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+  background-clip: content-box;
+}
+
+/* On the navy sidebar a light thumb reads better than the slate one. */
+.theme-admin aside *:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  background-clip: content-box;
+}
+
+.theme-admin aside *:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+  background-clip: content-box;
+}
+
+/* Firefox: same hidden-by-default, reveal-on-hover behaviour. */
+.theme-admin *:hover {
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+.theme-admin aside *:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
 }

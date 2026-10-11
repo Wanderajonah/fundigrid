@@ -10,8 +10,8 @@ export default function PageHeader({ title, subtitle, children }: Props) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
       <div className="min-w-0">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{title}</h1>
-        {subtitle && <p className="text-sm text-gray-400 mt-1.5">{subtitle}</p>}
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{title}</h1>
+        {subtitle && <p className="text-sm text-slate-400 mt-1.5">{subtitle}</p>}
       </div>
       {children && <div className="flex items-center gap-3">{children}</div>}
     </div>

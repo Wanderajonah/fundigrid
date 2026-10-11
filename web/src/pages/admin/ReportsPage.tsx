@@ -17,7 +17,7 @@ export default function ReportsPage() {
   ];
   const decided = completion.reduce((sum, c) => sum + c.value, 0);
   const percent = decided ? Math.round(((completion[0].value) / decided) * 100) : 0;
-  const completionChart = decided ? completion : [{ label: 'No jobs yet', value: 1, color: '#E5E7EB' }];
+  const completionChart = decided ? completion : [{ label: 'No jobs yet', value: 1, color: '#E2E8F0' }];
 
   const cards = requests
     ? [
@@ -33,7 +33,7 @@ export default function ReportsPage() {
       <PageHeader title="Reports & Analytics" subtitle="Track platform performance and job outcomes" />
 
       {loading && !stats && (
-        <p className="mb-6 text-sm text-gray-400">Loading reports…</p>
+        <p className="mb-6 text-sm text-slate-400">Loading reports…</p>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
@@ -43,20 +43,20 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <section className="xl:col-span-2 bg-white rounded-2xl border border-gray-100 p-7 min-w-0">
+        <section className="xl:col-span-2 bg-white rounded-2xl border border-slate-100 p-7 min-w-0">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Requests by Service</h2>
-              <p className="text-sm text-gray-400 mt-1">Job requests grouped by trade, all time</p>
+              <h2 className="text-lg font-bold text-slate-900">Requests by Service</h2>
+              <p className="text-sm text-slate-400 mt-1">Job requests grouped by trade, all time</p>
             </div>
-            <span className="text-xs font-semibold text-gray-300">All time</span>
+            <span className="text-xs font-semibold text-slate-400">All time</span>
           </div>
           <BarChart data={requests?.byService?.length ? requests.byService : [{ label: 'No data', value: 0 }]} />
         </section>
 
-        <section className="bg-white rounded-2xl border border-gray-100 p-7">
-          <h2 className="text-lg font-bold text-gray-900">Job Completion Rate</h2>
-          <p className="text-sm text-gray-400 mt-1 mb-6">Completed vs cancelled requests</p>
+        <section className="bg-white rounded-2xl border border-slate-100 p-7">
+          <h2 className="text-lg font-bold text-slate-900">Job Completion Rate</h2>
+          <p className="text-sm text-slate-400 mt-1 mb-6">Completed vs cancelled requests</p>
           <DonutChart
             data={completionChart}
             centerValue={decided ? `${percent}%` : '—'}
@@ -64,12 +64,12 @@ export default function ReportsPage() {
             size={170}
             showLegend={false}
           />
-          <ul className="space-y-3 mt-7 pt-6 border-t border-gray-50">
+          <ul className="space-y-3 mt-7 pt-6 border-t border-slate-50">
             {completion.map(c => (
               <li key={c.label} className="flex items-center gap-3 text-sm">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
-                <span className="text-gray-500">{c.label}</span>
-                <span className="ml-auto font-semibold text-gray-900">{c.value}</span>
+                <span className="text-slate-500">{c.label}</span>
+                <span className="ml-auto font-semibold text-slate-900">{c.value}</span>
               </li>
             ))}
           </ul>

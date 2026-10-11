@@ -1,6 +1,7 @@
 import { Bell, Shield, Globe, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import ChangePasswordCard from '../../components/ChangePasswordCard';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -53,9 +54,7 @@ export default function SettingsPage() {
       {/* Security */}
       <div className="mb-14">
         <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 mb-6"><Shield size={18} className="text-gray-400" /> Security</h2>
-        <p className="text-sm text-gray-400 leading-relaxed">
-          FundiGrid signs you in with a one-time code sent to your phone, so there is no password to change.
-        </p>
+        <ChangePasswordCard showWeakHint />
       </div>
 
       {/* Danger */}

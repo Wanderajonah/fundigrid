@@ -208,6 +208,12 @@ router.post("/client/create", protect, async (req, res, next) => {
       if (!fundi || fundi.role !== "fundi" || fundi.status !== "active") {
         return res.status(400).json({ success: false, message: "Fundi not found or unavailable" });
       }
+      // The directory only lists verified fundis; don't let a hand-built
+      // request slip an unreviewed one past that gate.
+      const profile = await FundiProfile.findOne({ userId: fundi.id });
+      if (!profile?.verified) {
+        return res.status(400).json({ success: false, message: "This fundi has not been verified yet" });
+      }
       fundiName = fullName(fundi) || "";
     }
 
@@ -270,6 +276,10 @@ router.post("/client/select-fundi", protect, async (req, res, next) => {
     const fundi = await User.findById(fundiId);
     if (!fundi || fundi.role !== "fundi" || fundi.status !== "active") {
       return res.status(400).json({ success: false, message: "Fundi not found or unavailable" });
+    }
+    const fundiProfile = await FundiProfile.findOne({ userId: fundi.id });
+    if (!fundiProfile?.verified) {
+      return res.status(400).json({ success: false, message: "This fundi has not been verified yet" });
     }
 
     const { scheduledFor } = req.body;

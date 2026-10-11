@@ -6,9 +6,10 @@ import StatusBadge from './components/StatusBadge';
 import { ApiError, getAdminRequest, submitAdminEstimate, type AdminRequest } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { ESTIMATE_STATUS_META, formatUGX, initialsOf } from './data/meta';
+import { jobRef } from '../../lib/jobRef';
 
 const fieldCls =
-  'w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-gray-300';
+  'w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-slate-400';
 
 function amount(value: string): number {
   const n = Number(String(value).replace(/[^\d.]/g, ''));
@@ -114,7 +115,7 @@ export default function EstimateDetailPage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
-        <p className="text-sm text-gray-400">Loading estimate…</p>
+        <p className="text-sm text-slate-400">Loading estimate…</p>
       </div>
     );
   }
@@ -122,8 +123,8 @@ export default function EstimateDetailPage() {
   if (error || !request) {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
-        <p className="text-lg font-bold text-gray-900">Estimate not found</p>
-        <p className="text-sm text-gray-400 mt-2">{error || 'This request may have been removed.'}</p>
+        <p className="text-lg font-bold text-slate-900">Estimate not found</p>
+        <p className="text-sm text-slate-400 mt-2">{error || 'This request may have been removed.'}</p>
         <Link to="/admin/estimates" className="inline-block mt-6 text-sm font-semibold text-primary hover:text-primary-dark">Back to estimates</Link>
       </div>
     );
@@ -136,12 +137,12 @@ export default function EstimateDetailPage() {
 
   return (
     <div className="max-w-[1100px] mx-auto">
-      <Link to={backTo} className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-900 transition-colors mb-6">
+      <Link to={backTo} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-900 transition-colors mb-6">
         <ArrowLeft size={16} /> {backLabel}
       </Link>
 
       <PageHeader
-        title={`Estimate ${estimate.jobId.slice(0, 8)}`}
+        title={`Estimate ${jobRef(estimate.jobId)}`}
         subtitle={`${estimate.service} · ${ready ? `Submitted ${estimate.submittedOn.slice(0, 10)}` : 'Awaiting the surveyor’s figure'}`}
       >
         <StatusBadge label={meta.label} cls={meta.cls} dot={meta.dot} size="md" />
@@ -160,40 +161,40 @@ export default function EstimateDetailPage() {
               </div>
               <Link
                 to={`/admin/requests/${estimate.jobId}/assign`}
-                className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-gray-900 text-sm font-semibold transition-all"
+                className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-slate-900 text-sm font-semibold transition-all"
               >
                 <UserCheck size={15} /> Assign a surveyor
               </Link>
             </div>
           ) : !ready ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-7">
-              <div className="flex items-center gap-3 pb-6 border-b border-gray-50">
+            <div className="bg-white rounded-2xl border border-slate-100 p-7">
+              <div className="flex items-center gap-3 pb-6 border-b border-slate-50">
                 <span className="w-10 h-10 rounded-full bg-primary/15 text-primary-dark flex items-center justify-center">
                   <Calculator size={18} />
                 </span>
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900">Submit Estimate</h3>
-                  <p className="text-xs text-gray-400">This unlocks the fundi directory for the client.</p>
+                  <h3 className="text-sm font-bold text-slate-900">Submit Estimate</h3>
+                  <p className="text-xs text-slate-400">This unlocks the fundi directory for the client.</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
                 <label className="block">
-                  <span className="block text-sm font-bold text-gray-900 mb-3">Labour (UGX)</span>
+                  <span className="block text-sm font-bold text-slate-900 mb-3">Labour (UGX)</span>
                   <input value={labour} onChange={e => setLabour(e.target.value)} inputMode="numeric" placeholder="e.g. 120000" className={fieldCls} />
                 </label>
                 <label className="block">
-                  <span className="block text-sm font-bold text-gray-900 mb-3">Materials (UGX)</span>
+                  <span className="block text-sm font-bold text-slate-900 mb-3">Materials (UGX)</span>
                   <input value={materials} onChange={e => setMaterials(e.target.value)} inputMode="numeric" placeholder="e.g. 85000" className={fieldCls} />
                 </label>
                 <label className="block">
-                  <span className="block text-sm font-bold text-gray-900 mb-3">Service fee (UGX)</span>
+                  <span className="block text-sm font-bold text-slate-900 mb-3">Service fee (UGX)</span>
                   <input value={serviceFee} onChange={e => setServiceFee(e.target.value)} inputMode="numeric" placeholder="e.g. 10000" className={fieldCls} />
                 </label>
               </div>
 
               <label className="block mt-5">
-                <span className="block text-sm font-bold text-gray-900 mb-3">Notes (optional)</span>
+                <span className="block text-sm font-bold text-slate-900 mb-3">Notes (optional)</span>
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
@@ -209,17 +210,17 @@ export default function EstimateDetailPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-3 pt-7 mt-2 border-t border-gray-50">
+              <div className="flex items-center justify-end gap-3 pt-7 mt-2 border-t border-slate-50">
                 <Link
                   to={backTo}
-                  className="px-6 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+                  className="px-6 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </Link>
                 <button
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-gray-900 text-sm font-semibold transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-slate-900 text-sm font-semibold transition-all disabled:opacity-50"
                 >
                   <Calculator size={16} /> {saving ? 'Submitting…' : 'Submit Estimate'}
                 </button>
@@ -227,43 +228,43 @@ export default function EstimateDetailPage() {
             </div>
           ) : (
             <>
-              <div className="bg-white rounded-2xl border border-gray-100 p-7">
-                <div className="flex items-center gap-4 pb-6 border-b border-gray-50">
+              <div className="bg-white rounded-2xl border border-slate-100 p-7">
+                <div className="flex items-center gap-4 pb-6 border-b border-slate-50">
                   <div className="w-14 h-14 rounded-full bg-primary/15 text-primary-dark flex items-center justify-center text-sm font-bold shrink-0">
                     {initialsOf(estimate.surveyor)}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900">{estimate.surveyor}</p>
-                    <p className="text-sm text-gray-400">Quantity Surveyor</p>
+                    <p className="font-semibold text-slate-900">{estimate.surveyor}</p>
+                    <p className="text-sm text-slate-400">Quantity Surveyor</p>
                   </div>
-                  <span className="ml-auto text-xs font-semibold text-gray-300">{estimate.id}</span>
+                  <span className="ml-auto text-xs font-semibold text-slate-400">{estimate.id}</span>
                 </div>
 
-                <h3 className="text-sm font-bold text-gray-900 mt-6 mb-4">Cost Breakdown</h3>
+                <h3 className="text-sm font-bold text-slate-900 mt-6 mb-4">Cost Breakdown</h3>
                 <table className="w-full text-sm">
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-50">
                     {estimate.breakdown.map(line => (
                       <tr key={line.label}>
-                        <td className="py-3.5 text-gray-500">{line.label}</td>
-                        <td className="py-3.5 text-right font-medium text-gray-700">{formatUGX(line.amount)}</td>
+                        <td className="py-3.5 text-slate-500">{line.label}</td>
+                        <td className="py-3.5 text-right font-medium text-slate-700">{formatUGX(line.amount)}</td>
                       </tr>
                     ))}
-                    <tr className="border-t-2 border-gray-100">
-                      <td className="py-4 font-bold text-gray-900">Total</td>
-                      <td className="py-4 text-right font-bold text-gray-900 text-base">{formatUGX(estimate.amount)}</td>
+                    <tr className="border-t-2 border-slate-100">
+                      <td className="py-4 font-bold text-slate-900">Total</td>
+                      <td className="py-4 text-right font-bold text-slate-900 text-base">{formatUGX(estimate.amount)}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-7">
-                <h3 className="text-sm font-bold text-gray-900 mb-4">Surveyor Notes</h3>
+              <div className="bg-white rounded-2xl border border-slate-100 p-7">
+                <h3 className="text-sm font-bold text-slate-900 mb-4">Surveyor Notes</h3>
                 {estimate.notes.length === 0 ? (
-                  <p className="text-sm text-gray-400">No notes were left with this estimate.</p>
+                  <p className="text-sm text-slate-400">No notes were left with this estimate.</p>
                 ) : (
                   <ul className="space-y-3">
                     {estimate.notes.map(note => (
-                      <li key={note} className="flex gap-3 text-sm text-gray-500 leading-relaxed">
+                      <li key={note} className="flex gap-3 text-sm text-slate-500 leading-relaxed">
                         <Star size={15} className="text-primary shrink-0 mt-0.5" />
                         {note}
                       </li>
@@ -276,38 +277,38 @@ export default function EstimateDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 p-7">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Job</h3>
+          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+            <h3 className="text-sm font-bold text-slate-900 mb-4">Job</h3>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-400">Request</dt>
-                <dd className="font-semibold text-gray-900">{estimate.jobId.slice(0, 8)}</dd>
+                <dt className="text-slate-400">Request</dt>
+                <dd className="font-semibold text-slate-900">{jobRef(estimate.jobId)}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-400">Service</dt>
-                <dd className="font-medium text-gray-700">{estimate.service}</dd>
+                <dt className="text-slate-400">Service</dt>
+                <dd className="font-medium text-slate-700">{estimate.service}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-400">Customer</dt>
-                <dd className="font-medium text-gray-700">{estimate.customer}</dd>
+                <dt className="text-slate-400">Customer</dt>
+                <dd className="font-medium text-slate-700">{estimate.customer}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-400">Surveyor</dt>
-                <dd className="font-medium text-gray-700">{estimate.surveyor}</dd>
+                <dt className="text-slate-400">Surveyor</dt>
+                <dd className="font-medium text-slate-700">{estimate.surveyor}</dd>
               </div>
             </dl>
             {!isSurveyor && (
               <Link
                 to={`/admin/requests/${estimate.jobId}`}
-                className="block text-center mt-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                className="block text-center mt-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
               >
                 View job request
               </Link>
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 p-7">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Status</h3>
+          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+            <h3 className="text-sm font-bold text-slate-900 mb-4">Status</h3>
             {ready ? (
               <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-5 text-center">
                 <CheckCircle2 size={20} className="mx-auto text-emerald-500" />
@@ -315,9 +316,9 @@ export default function EstimateDetailPage() {
                 <p className="text-xs text-emerald-700 mt-1">The client can now pick a fundi for this request.</p>
               </div>
             ) : (
-              <div className="rounded-xl bg-gray-50 border border-gray-100 p-5 text-center">
-                <p className="text-sm font-semibold text-gray-900">Awaiting the estimate</p>
-                <p className="text-xs text-gray-400 mt-1">Fundis stay hidden until this figure is submitted.</p>
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-5 text-center">
+                <p className="text-sm font-semibold text-slate-900">Awaiting the estimate</p>
+                <p className="text-xs text-slate-400 mt-1">Fundis stay hidden until this figure is submitted.</p>
               </div>
             )}
           </div>

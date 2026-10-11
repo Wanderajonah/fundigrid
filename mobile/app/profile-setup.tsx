@@ -7,6 +7,7 @@ import Avatar from '../src/components/Avatar';
 import PrimaryButton from '../src/components/PrimaryButton';
 import InputField from '../src/components/InputField';
 import SelectField from '../src/components/SelectField';
+import { goBackSafe } from '../src/services/navigation';
 import { IMAGES } from '../src/assets';
 import { colors, fonts, spacing } from '../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +17,7 @@ import { resolveCurrentLocation, type ResolvedLocation } from '../src/services/l
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
-  const { role, phone, mode } = useLocalSearchParams<{ role?: string; phone?: string; mode?: string }>();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isEdit = mode === 'edit';
   const { user, token, refreshUser } = useAuth();
   const [firstName, setFirstName] = useState('');
@@ -28,7 +29,6 @@ export default function ProfileSetupScreen() {
   const [locationDenied, setLocationDenied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [photoSaving, setPhotoSaving] = useState(false);
-
   // Camera badge on the avatar: pick a photo, store it as a data URL like the
   // fundi portfolio does, and refresh so the new picture shows immediately.
   const changePhoto = async () => {
@@ -130,14 +130,11 @@ export default function ProfileSetupScreen() {
       }
       await refreshUser();
       if (isEdit) {
-        router.back();
+        goBackSafe('/settings');
         return;
       }
-      if (role === 'fundi') {
-        router.push({ pathname: '/trade-details', params: { role } });
-      } else {
-        router.replace('/(tabs)');
-      }
+      // Legacy accounts that signed in without a name still land here once.
+      router.replace(user?.role === 'fundi' ? '/(fundi-tabs)' : '/(tabs)');
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to save profile.');
     } finally {
@@ -148,7 +145,7 @@ export default function ProfileSetupScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}>
+        <Pressable onPress={() => goBackSafe(isEdit ? '/settings' : '/(tabs)')} hitSlop={12} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}>
           <Ionicons name="chevron-back" size={24} color={colors.ink} />
         </Pressable>
         <Image source={IMAGES.logoLight} style={styles.logo} resizeMode="contain" />
@@ -233,11 +230,12 @@ export default function ProfileSetupScreen() {
             </Text>
           </View>
         </View>
+
       </ScrollView>
 
       <View style={styles.footer}>
         <PrimaryButton
-          title={isEdit ? 'Save' : 'Next'}
+          title="Save"
           onPress={handleNext}
           loading={loading}
         />

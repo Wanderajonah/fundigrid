@@ -4,13 +4,7 @@ import { FundiLayout } from './components/layout/FundiLayout';
 import RequireAuth from './components/RequireAuth';
 import { AuthProvider } from './context/AuthContext';
 
-import LandingPage from './pages/public/LandingPage';
-import HowItWorksPage from './pages/public/HowItWorksPage';
-import ForClientsPage from './pages/public/ForClientsPage';
-import ForFundisPage from './pages/public/ForFundisPage';
-import AboutPage from './pages/public/AboutPage';
 import LoginPage from './pages/public/LoginPage';
-import SignupPage from './pages/public/SignupPage';
 
 import ClientDashboard from './pages/client/Dashboard';
 import RequestJobPage from './pages/client/RequestJobPage';
@@ -45,6 +39,7 @@ import SurveyorsPage from './pages/admin/SurveyorsPage';
 import BookingsPage from './pages/admin/BookingsPage';
 import AdminFundiProfilePage from './pages/admin/FundiProfilePage';
 import UsersPage from './pages/admin/UsersPage';
+import VerificationsPage from './pages/admin/VerificationsPage';
 import ReportsPage from './pages/admin/ReportsPage';
 import AdminSettingsPage from './pages/admin/SettingsPage';
 
@@ -56,13 +51,8 @@ function App() {
     <AuthProvider>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/how-it-works" element={<HowItWorksPage />} />
-        <Route path="/for-clients" element={<ForClientsPage />} />
-        <Route path="/for-fundis" element={<ForFundisPage />} />
-        <Route path="/about" element={<AboutPage />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
 
         <Route path="/client" element={<RequireAuth role="customer"><AppLayout /></RequireAuth>}>
           <Route index element={<ClientDashboard />} />
@@ -136,6 +126,7 @@ function App() {
           <Route path="requests/:id/assign" element={<AssignSurveyorPage />} />
           <Route path="estimates" element={<EstimatesPage />} />
           <Route path="estimates/:id" element={<EstimateDetailPage />} />
+          <Route path="verifications" element={<VerificationsPage />} />
           <Route path="fundis" element={<FundisPage />} />
           <Route path="fundis/:id" element={<AdminFundiProfilePage />} />
           <Route path="surveyors" element={<SurveyorsPage />} />
@@ -154,7 +145,7 @@ function App() {
           <Route path="estimate/:id" element={<EstimateDetailPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
     </AuthProvider>

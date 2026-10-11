@@ -9,6 +9,7 @@ import {
   createAdminUser,
   deleteAdminUser,
   getAdminBookings,
+  getAdminVerifications,
   getAdminFundis,
   getAdminRequests,
   getAdminStats,
@@ -17,12 +18,14 @@ import {
   submitAdminEstimate,
   updateAdminFundi,
   updateAdminUser,
+  reviewAdminVerification,
   type AdminBooking,
   type AdminFundi,
   type AdminRequest,
   type AdminSurveyor,
   type AdminStats,
   type AdminUser,
+  type AdminVerification,
   type CreateUserInput,
   type EstimateInput,
   type SurveyStage,
@@ -183,6 +186,11 @@ interface AdminStoreValue {
   setUserStatus: (userId: string, status: 'Active' | 'Inactive') => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   setFundiStatus: (fundiId: string, status: FundiStatus) => Promise<void>;
+  verifications: AdminVerification[];
+  reviewVerification: (
+    userId: string,
+    decision: { decision: 'approve' | 'reject'; note?: string },
+  ) => Promise<void>;
 }
 
 const AdminStoreContext = createContext<AdminStoreValue | null>(null);
@@ -195,20 +203,24 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [verifications, setVerifications] = useState<AdminVerification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [requestRes, surveyorRes, fundiRes, userRes, bookingRes, statsRes] = await Promise.all([
-        getAdminRequests(),
-        getAdminSurveyors(),
-        getAdminFundis(),
-        getAdminUsers(),
-        getAdminBookings(),
-        getAdminStats(),
-      ]);
+      const [requestRes, surveyorRes, fundiRes, userRes, bookingRes, statsRes, verificationRes] =
+        await Promise.all([
+          getAdminRequests(),
+          getAdminSurveyors(),
+          getAdminFundis(),
+          getAdminUsers(),
+          getAdminBookings(),
+          getAdminStats(),
+          // The review queue drives the dashboard's pending-verification card.
+          getAdminVerifications('pending'),
+        ]);
 
       const rows = requestRes.requests || [];
       const mappedJobs = rows.map(toJob);
@@ -224,6 +236,7 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
       setUsers((userRes.users || []).map(toUser));
       setBookings((bookingRes.bookings || []).map(toBooking));
       setStats(statsRes.stats);
+      setVerifications(verificationRes.verifications || []);
       setError('');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not reach the server');
@@ -294,6 +307,16 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
     });
   }, [reload, run]);
 
+  const reviewVerification = useCallback(
+    async (userId: string, decision: { decision: 'approve' | 'reject'; note?: string }) => {
+      await run(async () => {
+        await reviewAdminVerification(userId, decision);
+        await reload();
+      });
+    },
+    [reload, run],
+  );
+
   const value = useMemo(
     () => ({
       jobs,
@@ -315,11 +338,14 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
       setUserStatus,
       deleteUser,
       setFundiStatus,
+      verifications,
+      reviewVerification,
     }),
     [
       jobs, estimates, fundis, surveyors, users, bookings, stats, loading, error,
       getJob, getEstimate, getFundi, reload, assignSurveyor, submitEstimate,
-      createUser, setUserStatus, deleteUser, setFundiStatus,
+      createUser, setUserStatus, deleteUser, setFundiStatus, verifications,
+      reviewVerification,
     ],
   );
 

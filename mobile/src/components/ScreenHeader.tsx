@@ -1,9 +1,9 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import FundiGridLogo from './FundiGridLogo';
 import { colors, spacing } from '../theme';
+import { goBackSafe } from '../services/navigation';
 
 type Props = {
   back?: boolean;
@@ -14,14 +14,12 @@ type Props = {
 };
 
 export default function ScreenHeader({ back = true, onBack, showLogo = true, right, title }: Props) {
-  const router = useRouter();
-
   return (
     <View style={styles.row}>
       <View style={styles.side}>
         {back && (
           <Pressable
-            onPress={onBack ?? (() => router.back())}
+            onPress={onBack ?? (() => goBackSafe('/'))}
             hitSlop={12}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
           >

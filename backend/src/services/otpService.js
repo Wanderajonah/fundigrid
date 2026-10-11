@@ -59,11 +59,28 @@ const sendOtp = async (phone, purpose = "register") => {
 
   const message = `Your FundiGrid verification code is: ${code}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`;
 
+  // Testing aid: mirror every OTP to this terminal (Render's logs included) so
+  // the code can be read without the phone, while the real SMS still goes out.
+  // Set COMMS_LOG_OTP=false once SMS delivery is trusted.
+  if (process.env.COMMS_LOG_OTP !== "false") {
+    console.log("\n─────────────────────────────────────────────");
+    console.log(`  [OTP] ${phone} (${purpose}) — ${isConfigured() ? "SMS sent + logged" : "logged (no SMS provider)"}`);
+    console.log(`  Code: ${code}   (valid ${OTP_EXPIRY_MINUTES} min)`);
+    console.log("─────────────────────────────────────────────\n");
+  }
+
   if (isConfigured()) {
     const sent = await sendSms(phone, message);
     if (sent.success) return { success: true, sent: true };
     console.error(`[otp] SMS to ${phone} failed: ${sent.message}`);
     return { success: false, message: "Could not send the verification SMS. Please try again." };
+  }
+
+  // No gateway yet: the code above is the delivery channel, so the flow keeps
+  // working end-to-end in testing. The code is never returned in the response.
+  if (process.env.COMMS_LOG_OTP !== "false") {
+    console.warn("[otp] SMS provider is not configured — the printed code above is the only delivery channel.");
+    return { success: true, devMode: true };
   }
 
   return { success: false, message: "SMS provider is not configured." };
