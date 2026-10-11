@@ -22,6 +22,9 @@ build/
 web-build/
 *.tsbuildinfo
 
+# Vercel CLI link (orgId / projectId — the deploy token lives in Actions secrets)
+.vercel/
+
 # generated native projects (EAS/prebuild recreates these)
 mobile/android/
 mobile/ios/
