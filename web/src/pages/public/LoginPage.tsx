@@ -178,7 +178,9 @@ export default function LoginPage() {
           className="absolute top-0 right-0 w-3/4 lg:w-2/3 select-none pointer-events-none"
         />
         <div className="relative text-center px-16">
-          <h2 className="text-4xl font-bold text-white mb-4">FundiGrid</h2>
+          <h2 className="text-6xl font-bold text-white mb-4">
+            Fundi<span className="text-primary">Grid</span>
+          </h2>
           <p className="text-gray-500 max-w-xs mx-auto">Connecting skilled artisans with clients across Uganda.</p>
         </div>
         <img
