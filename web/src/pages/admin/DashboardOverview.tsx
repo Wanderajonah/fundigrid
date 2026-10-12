@@ -1,13 +1,24 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ClipboardList, HardHat, ShieldCheck, Users, Wallet } from 'lucide-react';
+import { ArrowRight, ClipboardList, HardHat, Scissors, ShieldCheck, Users, Wallet, Wrench } from 'lucide-react';
 import PageHeader from './components/PageHeader';
 import StatCard from './components/StatCard';
 import DonutChart from './components/DonutChart';
 import LineChart from './components/LineChart';
-import StatusBadge from './components/StatusBadge';
 import { useAdminStore } from './context/AdminStore';
-import { initialsOf, JOB_STATUS_META, formatUGX } from './data/meta';
+import { initialsOf, JOB_STATUS_META, formatUGX, type JobStatus } from './data/meta';
 import { jobRef } from '../../lib/jobRef';
+import { categoryIcon } from '../../lib/categories';
+
+// Status pills on this table share one height and type scale; only the tint,
+// text colour and dot vary per status.
+const JOB_PILL: Record<JobStatus, { cls: string; dot: string }> = {
+  New: { cls: 'bg-[#E6F3FD] text-[#075985]', dot: '#0284C7' },
+  'Under Review': { cls: 'bg-[#FFF3DE] text-[#92400E]', dot: '#D97706' },
+  'Surveyor Assigned': { cls: 'bg-[#EEE8FD] text-[#5B21B6]', dot: '#7C3AED' },
+  'Estimate Ready': { cls: 'bg-[#FFEDD5] text-[#9A3412]', dot: '#EA580C' },
+  Completed: { cls: 'bg-[#E3F6EF] text-[#047857]', dot: '#059669' },
+  Cancelled: { cls: 'bg-[#FDE7EC] text-[#BE123C]', dot: '#E11D48' },
+};
 
 export default function DashboardOverview() {
   const { jobs, stats, loading, verifications } = useAdminStore();
@@ -99,18 +110,18 @@ export default function DashboardOverview() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <section className="bg-white rounded-2xl border border-line shadow-card p-7 min-w-0 xl:col-span-2">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-900">Recent Job Requests</h2>
-            <Link to="/admin/requests" className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors inline-flex items-center gap-1">
+        <section className="bg-white rounded-[20px] border border-line shadow-card p-7 min-w-0 xl:col-span-2">
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <h2 className="text-lg font-bold text-slate-900 whitespace-nowrap">Recent Job Requests</h2>
+            <Link to="/admin/requests" className="text-sm font-semibold text-[#B45309] hover:text-[#92400E] transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0">
               View all <ArrowRight size={14} />
             </Link>
           </div>
 
           <div className="overflow-x-auto -mx-2 px-2">
-            <table className="w-full text-sm min-w-[560px]">
+            <table className="w-full text-sm min-w-[640px] whitespace-nowrap">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-[#646B7A]">
                   <th className="font-semibold pb-3 pr-4">Service</th>
                   <th className="font-semibold pb-3 pr-4">Location</th>
                   <th className="font-semibold pb-3 pr-4">Customer</th>
@@ -119,22 +130,59 @@ export default function DashboardOverview() {
                   <th className="font-semibold pb-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-[#F0ECE6]">
                 {recent.map(job => {
                   const meta = JOB_STATUS_META[job.status];
+                  const pill = JOB_PILL[job.status];
+                  const plumbing = /plumb/i.test(job.service);
+                  const tailoring = /tailor|seamstress|dressmak/i.test(job.service);
+                  const ServiceIcon = tailoring ? Scissors : plumbing ? Wrench : categoryIcon(job.service);
+                  const chipCls = plumbing
+                    ? 'bg-[#E7F0FE] text-[#1D4ED8]'
+                    : tailoring
+                      ? 'bg-[#FDE7F1] text-[#BE185D]'
+                      : 'bg-[#F0ECE6] text-[#5A6272]';
                   return (
-                    <tr key={job.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={job.id} className="hover:bg-[#FAF8F5] transition-colors">
                       <td className="py-3.5 pr-4">
-                        <span className="font-semibold text-slate-900">{job.service}</span>
-                        <span className="block text-[11px] text-slate-400">{jobRef(job.id)}</span>
+                        <span className="flex items-center gap-3">
+                          <span className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${chipCls}`}>
+                            <ServiceIcon size={18} />
+                          </span>
+                          <span>
+                            <span className="block font-semibold text-slate-900">{job.service}</span>
+                            <span className="block text-[11px] text-slate-400">{jobRef(job.id)}</span>
+                          </span>
+                        </span>
                       </td>
-                      <td className="py-3.5 pr-4 text-slate-500">{job.location}</td>
-                      <td className="py-3.5 pr-4 text-slate-500">{job.customer}</td>
-                      <td className="py-3.5 pr-4 text-slate-400 whitespace-nowrap">{job.date}</td>
-                      <td className="py-3.5 pr-4"><StatusBadge label={meta.label} cls={meta.cls} dot={meta.dot} /></td>
+                      <td className="py-3.5 pr-4">
+                        {job.location ? (
+                          <span className="text-[#3B4558]">{job.location}</span>
+                        ) : (
+                          <span className="text-slate-400">Not provided</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <span className="flex items-center gap-2.5">
+                          <span className="w-[30px] h-[30px] shrink-0 rounded-full bg-[#EFEAE3] text-[#3B4558] flex items-center justify-center text-[11px] font-bold">
+                            {initialsOf(job.customer)}
+                          </span>
+                          <span className="text-slate-700">{job.customer}</span>
+                        </span>
+                      </td>
+                      <td className="py-3.5 pr-4 text-[#3B4558]">{job.date}</td>
+                      <td className="py-3.5 pr-4">
+                        <span className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[12px] font-bold ${pill.cls}`}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: pill.dot }} />
+                          {meta.label}
+                        </span>
+                      </td>
                       <td className="py-3.5 text-right">
-                        <Link to={`/admin/requests/${job.id}`} className="text-sm font-semibold text-primary hover:text-primary-dark">
-                          View
+                        <Link
+                          to={`/admin/requests/${job.id}`}
+                          className="inline-flex items-center gap-1.5 h-11 px-4 rounded-xl border border-line text-sm font-bold text-slate-900 hover:bg-[#FAF8F5] transition-colors"
+                        >
+                          View <ArrowRight size={14} />
                         </Link>
                       </td>
                     </tr>
@@ -150,11 +198,11 @@ export default function DashboardOverview() {
           </div>
         </section>
 
-        <section className="bg-white rounded-2xl border border-line shadow-card p-7 min-w-0">
+        <section className="bg-white rounded-[20px] border border-line shadow-card p-7 min-w-0 self-start">
           <div className="mb-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-900">Pending Verifications</h2>
-              <Link to="/admin/verifications" className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0">
+              <h2 className="text-lg font-bold text-slate-900 whitespace-nowrap">Pending Verifications</h2>
+              <Link to="/admin/verifications" className="text-sm font-semibold text-[#B45309] hover:text-[#92400E] transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0">
                 View all <ArrowRight size={14} />
               </Link>
             </div>
@@ -184,10 +232,12 @@ export default function DashboardOverview() {
               ))}
             </ul>
           ) : (
-            <div className="py-10 flex flex-col items-center text-center gap-2">
-              <ShieldCheck size={24} className="text-emerald-400" />
-              <p className="text-sm font-semibold text-slate-600">No pending fundis</p>
-              <p className="text-xs text-slate-400">Everything has been reviewed.</p>
+            <div className="rounded-2xl border border-dashed border-line bg-page p-8 flex flex-col items-center text-center gap-2">
+              <span className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                <ShieldCheck size={24} className="text-emerald-600" />
+              </span>
+              <p className="text-sm font-bold text-slate-900">No pending fundis</p>
+              <p className="text-xs text-slate-500">Everything has been reviewed.</p>
             </div>
           )}
         </section>
