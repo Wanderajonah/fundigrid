@@ -42,7 +42,7 @@ export default function FundiProfilePage() {
 
   return (
     <div className="max-w-[1100px] mx-auto">
-      <Link to="/admin/fundis" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-900 transition-colors mb-6">
+      <Link to="/admin/fundis" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-6">
         <ArrowLeft size={16} /> Back to fundis
       </Link>
 
@@ -52,7 +52,7 @@ export default function FundiProfilePage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-7 mb-6">
+      <div className="bg-white rounded-2xl border border-line shadow-card p-7 mb-6">
         <div className="flex flex-wrap items-center gap-5">
           <div className="w-20 h-20 rounded-full bg-navy-900 text-white flex items-center justify-center text-xl font-bold shrink-0">
             {initialsOf(fundi.name)}
@@ -92,7 +92,7 @@ export default function FundiProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-7 min-w-0">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-line shadow-card p-7 min-w-0">
           <Tabs tabs={TABS} active={tab} onChange={setTab} variant="underline" />
 
           {tab === 'overview' && (
@@ -108,7 +108,7 @@ export default function FundiProfilePage() {
                   { icon: <Clock size={15} />, label: 'Availability', value: fundi.availability },
                   { icon: <Star size={15} />, label: 'Completed Jobs', value: String(fundi.completedJobs) },
                 ].map(item => (
-                  <div key={item.label} className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <div key={item.label} className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-line">
                     <span className="text-primary mt-0.5">{item.icon}</span>
                     <div>
                       <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.label}</p>
@@ -156,7 +156,7 @@ export default function FundiProfilePage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <h3 className="text-sm font-bold text-slate-900 mb-4">Details</h3>
             <dl className="space-y-3 text-sm">
               {[

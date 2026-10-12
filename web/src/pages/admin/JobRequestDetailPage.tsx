@@ -26,7 +26,7 @@ export default function JobRequestDetailPage() {
   if (!job && loading) {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
-        <p className="text-sm text-slate-400">Loading request…</p>
+        <p className="text-sm text-slate-500">Loading request…</p>
       </div>
     );
   }
@@ -35,7 +35,7 @@ export default function JobRequestDetailPage() {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
         <p className="text-lg font-bold text-slate-900">Request not found</p>
-        <p className="text-sm text-slate-400 mt-2">This job request may have been removed.</p>
+        <p className="text-sm text-slate-500 mt-2">This job request may have been removed.</p>
         <Link to="/admin/requests" className="inline-block mt-6 text-sm font-semibold text-primary hover:text-primary-dark">Back to job requests</Link>
       </div>
     );
@@ -65,7 +65,7 @@ export default function JobRequestDetailPage() {
 
   return (
     <div className="max-w-[1360px] mx-auto">
-      <Link to="/admin/requests" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-900 transition-colors mb-6">
+      <Link to="/admin/requests" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-6">
         <ArrowLeft size={16} /> Back to job requests
       </Link>
 
@@ -87,7 +87,7 @@ export default function JobRequestDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6 min-w-0">
-          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <Tabs tabs={TABS} active={tab} onChange={setTab} variant="underline" />
 
             {tab === 'overview' && (
@@ -105,7 +105,7 @@ export default function JobRequestDetailPage() {
                       { icon: <Camera size={15} />, label: 'Photos', value: `${job.photos} uploaded` },
                       { icon: <UserCheck size={15} />, label: 'Surveyor', value: assignedName || 'Not assigned yet' },
                     ].map(item => (
-                      <div key={item.label} className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                      <div key={item.label} className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-line">
                         <span className="text-primary mt-0.5">{item.icon}</span>
                         <div className="min-w-0">
                           <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.label}</p>
@@ -130,7 +130,7 @@ export default function JobRequestDetailPage() {
             )}
 
             {tab === 'timeline' && (
-              <ol className="relative border-l border-slate-100 ml-2 space-y-7">
+              <ol className="relative border-l border-line ml-2 space-y-7">
                 {timeline.map(item => (
                   <li key={item.label} className="ml-6">
                     <span className={`absolute -left-[7px] mt-1 w-3.5 h-3.5 rounded-full border-2 border-white ${item.done ? 'bg-primary' : 'bg-slate-200'}`} />
@@ -160,7 +160,7 @@ export default function JobRequestDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <h3 className="text-sm font-bold text-slate-900 mb-5">Customer</h3>
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-navy-900 text-white flex items-center justify-center text-sm font-bold">
@@ -181,7 +181,7 @@ export default function JobRequestDetailPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-bold text-slate-900">Surveyor</h3>
               {surveyor && <StatusBadge label={surveyor.available ? 'Available' : 'Busy'} cls={surveyor.available ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} />}
@@ -217,7 +217,7 @@ export default function JobRequestDetailPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-bold text-slate-900">Photos</h3>
               <span className="text-xs text-slate-400">{job.photos} uploaded</span>

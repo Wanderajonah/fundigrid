@@ -11,6 +11,11 @@
   --color-navy-800: #173B6B;
   --color-navy-700: #1E4E8C;
   --color-surface: #F4F7FB;
+  /* Warm admin console: page background (bg-page) + card hairline (border-line)
+     and the shared card elevation (shadow-card). Tune colors here. */
+  --color-page: #FAF8F5;
+  --color-line: #EAE6E0;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 

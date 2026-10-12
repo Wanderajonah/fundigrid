@@ -145,7 +145,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-[1360px] mx-auto py-24 text-center text-slate-400">
+      <div className="max-w-[1360px] mx-auto py-24 text-center text-slate-500">
         <Loader2 size={18} className="inline animate-spin mr-2" /> Loading settings…
       </div>
     );
@@ -171,7 +171,7 @@ export default function SettingsPage() {
                 key={s.key}
                 onClick={() => setSection(s.key)}
                 className={`w-full text-left p-4 rounded-2xl border transition-all ${
-                  active ? 'bg-white border-primary/40 shadow-sm' : 'bg-white border-slate-100 hover:border-slate-200'
+                  active ? 'bg-white border-primary/40 shadow-sm' : 'bg-white border-line shadow-card hover:border-slate-200'
                 }`}
               >
                 <span className="flex items-center gap-3">
@@ -188,7 +188,7 @@ export default function SettingsPage() {
           })}
         </nav>
 
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 p-7">
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-line shadow-card p-7">
           <div className="flex items-center justify-between gap-4 mb-7 pb-5 border-b border-slate-50">
             <div>
               <h2 className="text-lg font-bold text-slate-900">{SECTIONS.find(s => s.key === section)?.label}</h2>

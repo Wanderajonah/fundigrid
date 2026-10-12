@@ -46,13 +46,13 @@ export default function AssignSurveyorPage() {
 
   return (
     <div className="max-w-[980px] mx-auto">
-      <Link to={`/admin/requests/${job.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-900 transition-colors mb-6">
+      <Link to={`/admin/requests/${job.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-6">
         <ArrowLeft size={16} /> Back to request
       </Link>
 
       <PageHeader title="Assign Quantity Surveyor" subtitle="Pick a surveyor to measure the site and prepare an estimate" />
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-7 mb-6">
+      <div className="bg-white rounded-2xl border border-line shadow-card p-7 mb-6">
         <div className="flex flex-wrap items-center gap-4 pb-6 border-b border-slate-50">
           <span className="text-lg font-bold text-slate-900">{jobRef(job.id)}</span>
           <StatusBadge label={meta.label} cls={meta.cls} dot={meta.dot} />
@@ -83,7 +83,7 @@ export default function AssignSurveyorPage() {
               </select>
 
               {selected && (
-                <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-5 flex items-center gap-4">
+                <div className="mt-5 rounded-xl border border-line bg-slate-50 p-5 flex items-center gap-4">
                   <div className="w-14 h-14 rounded-full bg-primary/15 text-primary-dark flex items-center justify-center text-sm font-bold shrink-0">
                     {initialsOf(selected.name)}
                   </div>

@@ -115,7 +115,7 @@ export default function EstimateDetailPage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
-        <p className="text-sm text-slate-400">Loading estimate…</p>
+        <p className="text-sm text-slate-500">Loading estimate…</p>
       </div>
     );
   }
@@ -124,7 +124,7 @@ export default function EstimateDetailPage() {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
         <p className="text-lg font-bold text-slate-900">Estimate not found</p>
-        <p className="text-sm text-slate-400 mt-2">{error || 'This request may have been removed.'}</p>
+        <p className="text-sm text-slate-500 mt-2">{error || 'This request may have been removed.'}</p>
         <Link to="/admin/estimates" className="inline-block mt-6 text-sm font-semibold text-primary hover:text-primary-dark">Back to estimates</Link>
       </div>
     );
@@ -137,7 +137,7 @@ export default function EstimateDetailPage() {
 
   return (
     <div className="max-w-[1100px] mx-auto">
-      <Link to={backTo} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-900 transition-colors mb-6">
+      <Link to={backTo} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-6">
         <ArrowLeft size={16} /> {backLabel}
       </Link>
 
@@ -167,7 +167,7 @@ export default function EstimateDetailPage() {
               </Link>
             </div>
           ) : !ready ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-7">
+            <div className="bg-white rounded-2xl border border-line shadow-card p-7">
               <div className="flex items-center gap-3 pb-6 border-b border-slate-50">
                 <span className="w-10 h-10 rounded-full bg-primary/15 text-primary-dark flex items-center justify-center">
                   <Calculator size={18} />
@@ -228,7 +228,7 @@ export default function EstimateDetailPage() {
             </div>
           ) : (
             <>
-              <div className="bg-white rounded-2xl border border-slate-100 p-7">
+              <div className="bg-white rounded-2xl border border-line shadow-card p-7">
                 <div className="flex items-center gap-4 pb-6 border-b border-slate-50">
                   <div className="w-14 h-14 rounded-full bg-primary/15 text-primary-dark flex items-center justify-center text-sm font-bold shrink-0">
                     {initialsOf(estimate.surveyor)}
@@ -249,7 +249,7 @@ export default function EstimateDetailPage() {
                         <td className="py-3.5 text-right font-medium text-slate-700">{formatUGX(line.amount)}</td>
                       </tr>
                     ))}
-                    <tr className="border-t-2 border-slate-100">
+                    <tr className="border-t-2 border-line">
                       <td className="py-4 font-bold text-slate-900">Total</td>
                       <td className="py-4 text-right font-bold text-slate-900 text-base">{formatUGX(estimate.amount)}</td>
                     </tr>
@@ -257,7 +257,7 @@ export default function EstimateDetailPage() {
                 </table>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-100 p-7">
+              <div className="bg-white rounded-2xl border border-line shadow-card p-7">
                 <h3 className="text-sm font-bold text-slate-900 mb-4">Surveyor Notes</h3>
                 {estimate.notes.length === 0 ? (
                   <p className="text-sm text-slate-400">No notes were left with this estimate.</p>
@@ -277,7 +277,7 @@ export default function EstimateDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <h3 className="text-sm font-bold text-slate-900 mb-4">Job</h3>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between gap-4">
@@ -307,7 +307,7 @@ export default function EstimateDetailPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 p-7">
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <h3 className="text-sm font-bold text-slate-900 mb-4">Status</h3>
             {ready ? (
               <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-5 text-center">
@@ -316,7 +316,7 @@ export default function EstimateDetailPage() {
                 <p className="text-xs text-emerald-700 mt-1">The client can now pick a fundi for this request.</p>
               </div>
             ) : (
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-5 text-center">
+              <div className="rounded-xl bg-slate-50 border border-line p-5 text-center">
                 <p className="text-sm font-semibold text-slate-900">Awaiting the estimate</p>
                 <p className="text-xs text-slate-400 mt-1">Fundis stay hidden until this figure is submitted.</p>
               </div>

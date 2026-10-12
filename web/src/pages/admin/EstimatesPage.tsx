@@ -62,7 +62,7 @@ export default function EstimatesPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-7">
+      <div className="bg-white rounded-2xl border border-line shadow-card p-7">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[780px]">
             <thead>

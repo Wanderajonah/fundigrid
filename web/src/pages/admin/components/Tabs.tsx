@@ -14,7 +14,7 @@ interface Props {
 export default function Tabs({ tabs, active, onChange, variant = 'pill' }: Props) {
   if (variant === 'underline') {
     return (
-      <div className="border-b border-slate-100 flex gap-7 mb-8 overflow-x-auto">
+      <div className="border-b border-line flex gap-7 mb-8 overflow-x-auto">
         {tabs.map(tab => {
           const isActive = tab.key === active;
           return (

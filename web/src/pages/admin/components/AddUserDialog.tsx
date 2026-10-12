@@ -99,7 +99,7 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
       />
       <form
         onSubmit={submit}
-        className="relative w-full max-w-lg max-h-[88vh] overflow-y-auto overscroll-contain bg-white rounded-2xl border border-slate-100 p-7 shadow-xl"
+        className="relative w-full max-w-lg max-h-[88vh] overflow-y-auto overscroll-contain bg-white rounded-2xl border border-line p-7 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
@@ -213,7 +213,7 @@ export default function AddUserDialog({ open, role, lockRole = false, onClose, o
           </p>
         )}
 
-        <div className="sticky bottom-0 z-10 -mx-7 -mb-7 mt-6 flex items-center justify-end gap-3 bg-white border-t border-slate-100 px-7 py-4">
+        <div className="sticky bottom-0 z-10 -mx-7 -mb-7 mt-6 flex items-center justify-end gap-3 bg-white border-t border-line px-7 py-4">
           <button
             type="button"
             onClick={onClose}

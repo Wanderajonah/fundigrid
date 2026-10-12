@@ -69,7 +69,7 @@ export default function DashboardOverview() {
       <PageHeader title={`${greeting}, Admin`} subtitle="Here’s what’s happening with your platform today" />
 
       {loading && !stats && (
-        <p className="mb-6 text-sm text-slate-400">Loading platform numbers…</p>
+        <p className="mb-6 text-sm text-slate-500">Loading platform numbers…</p>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
@@ -79,13 +79,13 @@ export default function DashboardOverview() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <section className="bg-white rounded-2xl border border-slate-100 p-7 min-w-0">
+        <section className="bg-white rounded-2xl border border-line shadow-card p-7 min-w-0">
           <h2 className="text-lg font-bold text-slate-900 mb-1">Bookings Trend</h2>
           <p className="text-sm text-slate-400 mb-6">Job requests created each day, last 7 days</p>
           <LineChart data={trend} />
         </section>
 
-        <section className="bg-white rounded-2xl border border-slate-100 p-7 min-w-0">
+        <section className="bg-white rounded-2xl border border-line shadow-card p-7 min-w-0">
           <h2 className="text-lg font-bold text-slate-900 mb-1">Top Services</h2>
           <p className="text-sm text-slate-400 mb-6">Most requested trades, all time</p>
           <DonutChart
@@ -99,7 +99,7 @@ export default function DashboardOverview() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <section className="bg-white rounded-2xl border border-slate-100 p-7 min-w-0 xl:col-span-2">
+        <section className="bg-white rounded-2xl border border-line shadow-card p-7 min-w-0 xl:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-slate-900">Recent Job Requests</h2>
             <Link to="/admin/requests" className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors inline-flex items-center gap-1">
@@ -150,7 +150,7 @@ export default function DashboardOverview() {
           </div>
         </section>
 
-        <section className="bg-white rounded-2xl border border-slate-100 p-7 min-w-0">
+        <section className="bg-white rounded-2xl border border-line shadow-card p-7 min-w-0">
           <div className="mb-6">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-slate-900">Pending Verifications</h2>

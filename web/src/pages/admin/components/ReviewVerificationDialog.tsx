@@ -44,8 +44,8 @@ export default function ReviewVerificationDialog({ row, busy, onClose, onDecide 
         className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm"
         onClick={close}
       />
-      <div className="relative w-full max-w-2xl max-h-[88vh] overflow-y-auto theme-admin bg-white rounded-2xl border border-slate-100 shadow-2xl">
-        <div className="flex items-start justify-between gap-4 p-6 pb-4 border-b border-slate-100 sticky top-0 bg-white">
+      <div className="relative w-full max-w-2xl max-h-[88vh] overflow-y-auto theme-admin bg-white rounded-2xl border border-line shadow-2xl">
+        <div className="flex items-start justify-between gap-4 p-6 pb-4 border-b border-line sticky top-0 bg-white">
           <div className="flex items-center gap-3 min-w-0">
             <span className="w-11 h-11 rounded-full bg-navy-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
               {initialsOf(row.name)}
@@ -119,7 +119,7 @@ export default function ReviewVerificationDialog({ row, busy, onClose, onDecide 
               Referees
             </h3>
             {row.referees.length ? (
-              <ul className="divide-y divide-slate-50 rounded-xl border border-slate-100">
+              <ul className="divide-y divide-slate-50 rounded-xl border border-line">
                 {row.referees.map((ref, i) => (
                   <li key={i} className="flex items-center justify-between gap-4 px-4 py-3">
                     <span className="text-sm font-medium text-slate-700">
@@ -163,7 +163,7 @@ export default function ReviewVerificationDialog({ row, busy, onClose, onDecide 
           )}
         </div>
 
-        <div className="p-6 pt-0 sticky bottom-0 bg-white border-t border-slate-100 mt-2">
+        <div className="p-6 pt-0 sticky bottom-0 bg-white border-t border-line mt-2">
           {rejecting ? (
             <div className="pt-4 space-y-3">
               <label className="block text-sm font-semibold text-slate-700" htmlFor="reject-note">

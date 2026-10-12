@@ -25,10 +25,10 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   return (
-    <div className="theme-admin flex min-h-screen bg-white">
+    <div className="theme-admin flex min-h-screen bg-page">
       <button
         onClick={() => setOpen(!open)}
-        className="lg:hidden fixed top-5 left-5 z-50 p-3 bg-white rounded-2xl shadow-lg border border-slate-100"
+        className="lg:hidden fixed top-5 left-5 z-50 p-3 bg-white rounded-2xl shadow-lg border border-line"
         aria-label="Toggle navigation"
       >
         {open ? <X size={20} /> : <Menu size={20} />}
@@ -85,13 +85,13 @@ export default function AdminLayout() {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 lg:pl-[262px]">
-        <header className="sticky top-0 z-30 h-[84px] bg-white border-b border-slate-100 flex items-center justify-between gap-4 px-6 lg:px-12">
+        <header className="sticky top-0 z-30 h-[84px] bg-white border-b border-line flex items-center justify-between gap-4 px-6 lg:px-12">
           <div className="relative max-w-md flex-1">
             <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search anything…"
-              className="w-full pl-12 pr-5 py-2.5 text-sm bg-slate-50 border border-slate-100 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-slate-400"
+              className="w-full pl-12 pr-5 py-2.5 text-sm bg-slate-50 border border-line rounded-full focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all placeholder:text-slate-400"
             />
           </div>
           <div className="flex items-center gap-3">
@@ -99,7 +99,7 @@ export default function AdminLayout() {
               <Bell size={18} className="text-slate-400" />
               <span className="absolute top-2 right-2.5 w-2 h-2 bg-primary rounded-full" />
             </button>
-            <div className="hidden sm:flex items-center gap-2.5 pl-2 pr-4 py-1.5 rounded-full bg-slate-50 border border-slate-100">
+            <div className="hidden sm:flex items-center gap-2.5 pl-2 pr-4 py-1.5 rounded-full bg-slate-50 border border-line">
               <div className="w-9 h-9 rounded-full bg-navy-900 flex items-center justify-center text-white text-[11px] font-bold">AD</div>
               <div className="leading-tight">
                 <p className="text-sm font-semibold text-slate-900">Admin</p>
