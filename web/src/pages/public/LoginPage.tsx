@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react';
 import logoLight from '../../assets/logo-light.png';
 import cityIllustration from '../../assets/cityillustration.png';
+import semicircles from '../../assets/semicircles.png';
 import { type Role } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -67,16 +68,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       <div className="relative overflow-hidden flex-1 flex items-center justify-center p-6 sm:p-10 lg:p-16">
-        {/* Bottom-left decorative arcs — soft gold/cream rings, mostly off-screen,
-            always behind the form (form content sits at z-10). */}
-        <div
+        {/* Bottom-left decorative semicircles — static image asset, sits behind the form */}
+        <img
+          src={semicircles}
+          alt=""
           aria-hidden
-          className="pointer-events-none select-none absolute -bottom-12 -left-12 h-[8.8rem] w-[8.8rem] sm:-bottom-16 sm:-left-16 sm:h-[12rem] sm:w-[12rem] lg:-bottom-20 lg:-left-20 lg:h-[15.2rem] lg:w-[15.2rem]"
-        >
-          <div className="absolute inset-0 rounded-full bg-primary/20" />
-          <div className="absolute inset-0 rounded-full border-2 border-primary/30" />
-          <div className="absolute inset-[16%] rounded-full border border-primary/15" />
-        </div>
+          className="pointer-events-none select-none absolute bottom-0 left-0 w-64 sm:w-80 lg:w-96"
+        />
 
         <div className="relative z-10 w-full max-w-[380px]">
           <img src={logoLight} alt="FundiGrid" className="block mx-auto h-14 w-auto" />
