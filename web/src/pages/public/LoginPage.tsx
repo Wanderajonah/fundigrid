@@ -74,13 +74,8 @@ export default function LoginPage() {
           className="pointer-events-none select-none absolute -bottom-32 -left-32 h-[22rem] w-[22rem] sm:-bottom-40 sm:-left-40 sm:h-[30rem] sm:w-[30rem] lg:-bottom-48 lg:-left-48 lg:h-[38rem] lg:w-[38rem]"
         >
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary-soft/50 via-primary/5 to-transparent" />
-          <div className="absolute inset-0 rounded-full border-2 border-primary/25" />
-          <div className="absolute inset-[7%] rounded-full border border-primary/20" />
-          <div className="absolute inset-[14%] rounded-full border border-primary/15" />
-          <div className="absolute inset-[21%] rounded-full border border-amber-300/20" />
-          <div className="absolute inset-[28%] rounded-full border border-primary/12" />
-          <div className="absolute inset-[35%] rounded-full border border-amber-200/30" />
-          <div className="absolute inset-[42%] rounded-full border border-primary/10" />
+          <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+          <div className="absolute inset-[16%] rounded-full border border-primary/15" />
         </div>
 
         <div className="relative z-10 w-full max-w-[380px]">
