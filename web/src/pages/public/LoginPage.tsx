@@ -77,10 +77,10 @@ export default function LoginPage() {
         />
 
         <div className="relative z-10 w-full max-w-[380px]">
-          <img src={logoLight} alt="FundiGrid" className="block mx-auto h-14 w-auto" />
+          <img src={logoLight} alt="FundiGrid" className="block mx-auto lg:mx-0 h-14 w-auto" />
 
-          <h1 className="text-3xl font-bold text-gray-900 mt-8 mb-2 text-center">Welcome back</h1>
-          <p className="text-sm text-gray-500 text-center">Sign in with your email and password</p>
+          <h1 className="text-3xl font-bold text-gray-900 mt-8 mb-2 text-center lg:text-left">Welcome back</h1>
+          <p className="text-sm text-gray-500 text-center lg:text-left">Sign in with your email and password</p>
 
           {weak ? (
             <div className="mt-10 rounded-2xl border border-amber-200 bg-amber-50 p-6">
