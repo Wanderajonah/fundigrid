@@ -71,7 +71,7 @@ export default function LoginPage() {
             always behind the form (form content sits at z-10). */}
         <div
           aria-hidden
-          className="pointer-events-none select-none absolute -bottom-32 -left-32 h-[22rem] w-[22rem] sm:-bottom-40 sm:-left-40 sm:h-[30rem] sm:w-[30rem] lg:-bottom-48 lg:-left-48 lg:h-[38rem] lg:w-[38rem]"
+          className="pointer-events-none select-none absolute -bottom-12 -left-12 h-[8.8rem] w-[8.8rem] sm:-bottom-16 sm:-left-16 sm:h-[12rem] sm:w-[12rem] lg:-bottom-20 lg:-left-20 lg:h-[15.2rem] lg:w-[15.2rem]"
         >
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary-soft/50 via-primary/5 to-transparent" />
           <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
