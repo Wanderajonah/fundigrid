@@ -14,8 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        # The Vite app lives in web/ — the Vercel project is linked from there
-        # (web/.vercel/project.json), so every step runs with that cwd.
+        # The Vite app lives in web/ — every step runs with that cwd.
         working-directory: web
     steps:
       - name: Checkout Code
@@ -30,6 +29,11 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
+
+      # Link explicitly so deploys always target the fundigrid project,
+      # regardless of the local .vercel folder or auto-link behavior.
+      - name: Link to Vercel project
+        run: vercel link --yes --project fundigrid --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
