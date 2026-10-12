@@ -181,7 +181,7 @@ export default function LoginPage() {
           <h2 className="text-6xl font-bold text-white mb-4">
             Fundi<span className="text-primary">Grid</span>
           </h2>
-          <p className="text-gray-500 max-w-xs mx-auto">Connecting skilled artisans with clients across Uganda.</p>
+          <p className="text-[#F5F5F5] max-w-xs mx-auto">Connecting skilled artisans with clients across Uganda.</p>
         </div>
         <img
           src={cityIllustration}
