@@ -25,7 +25,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   return (
-    <div className="theme-admin flex min-h-screen bg-surface">
+    <div className="theme-admin flex min-h-screen bg-white">
       <button
         onClick={() => setOpen(!open)}
         className="lg:hidden fixed top-5 left-5 z-50 p-3 bg-white rounded-2xl shadow-lg border border-slate-100"
