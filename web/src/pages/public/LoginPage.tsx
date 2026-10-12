@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react';
 import logoLight from '../../assets/logo-light.png';
+import cityIllustration from '../../assets/cityillustration.png';
 import { type Role } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -148,11 +149,17 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="hidden lg:flex flex-1 bg-gray-950 items-center justify-center">
+      <div className="hidden lg:flex flex-1 relative overflow-hidden bg-gray-950 items-center justify-center">
         <div className="text-center px-16">
           <h2 className="text-4xl font-bold text-white mb-4">FundiGrid</h2>
           <p className="text-gray-500 max-w-xs mx-auto">Connecting skilled artisans with clients across Uganda.</p>
         </div>
+        <img
+          src={cityIllustration}
+          alt=""
+          aria-hidden
+          className="absolute bottom-0 left-0 w-full select-none pointer-events-none"
+        />
       </div>
     </div>
   );
