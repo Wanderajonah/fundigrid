@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react';
 import logoLight from '../../assets/logo-light.png';
 import cityIllustration from '../../assets/cityillustration.png';
+import upperCorner from '../../assets/uppercorner.png';
 import semicircles from '../../assets/semicircles.png';
 import { type Role } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -170,7 +171,13 @@ export default function LoginPage() {
       </div>
 
       <div className="hidden lg:flex flex-1 relative overflow-hidden bg-gray-950 items-center justify-center">
-        <div className="text-center px-16">
+        <img
+          src={upperCorner}
+          alt=""
+          aria-hidden
+          className="absolute top-0 right-0 w-3/4 lg:w-2/3 select-none pointer-events-none"
+        />
+        <div className="relative text-center px-16">
           <h2 className="text-4xl font-bold text-white mb-4">FundiGrid</h2>
           <p className="text-gray-500 max-w-xs mx-auto">Connecting skilled artisans with clients across Uganda.</p>
         </div>
