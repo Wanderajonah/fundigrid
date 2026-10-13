@@ -40,7 +40,7 @@ connectDB().then(async () => {
   await ensureStorageBuckets();
   const bcrypt = require("bcryptjs");
   const User = require("./models/User");
-  const [firstName, ...lastNameParts] = String(process.env.ADMIN_NAME || "Ufundi Admin")
+  const [firstName, ...lastNameParts] = String(process.env.ADMIN_NAME || "FundiGrid Admin")
     .trim()
     .split(/\s+/)
     .filter(Boolean);
