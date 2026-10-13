@@ -173,7 +173,7 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
 }
 
 .splash-progress {
-  animation: splash-progress-fill 5s linear 0.15s both;
+  animation: splash-progress-fill 5s linear both;
 }
 
 @media (prefers-reduced-motion: reduce) {
