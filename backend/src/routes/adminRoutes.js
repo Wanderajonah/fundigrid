@@ -9,6 +9,7 @@ const PlatformSettings = require("../models/PlatformSettings");
 const { buildSurveyEstimate } = require("../services/estimateService");
 const { surveyStage, isAssignable, progressSteps, STAGES } = require("../services/surveyService");
 const { fullName, normalisePhone } = require("../controllers/authController");
+const { audit } = require("../services/auditService");
 
 function requireAdmin(req, res, next) {
   if (req.user.role !== "admin") {
@@ -132,11 +133,20 @@ router.post("/requests/:id/assign-surveyor", protect, requireAdmin, async (req, 
       return res.status(400).json({ success: false, message: "Surveyor not found or unavailable" });
     }
 
+    const surveyorName = fullName(surveyor);
     const updated = await Booking.findByIdAndUpdate(booking.id, {
       surveyorId: surveyor.id,
-      surveyorName: fullName(surveyor),
+      surveyorName,
       surveyStatus: "SURVEYOR_ASSIGNED",
       assignedAt: new Date().toISOString(),
+    });
+    audit(req, {
+      action: "surveyor.assigned",
+      category: "jobs",
+      entityType: "booking",
+      entityId: booking.id,
+      summary: `Assigned ${surveyorName} to request ${booking.id}`,
+      meta: { surveyorId: surveyor.id, surveyorName, service: booking.category || "" },
     });
     res.json({ success: true, booking: updated, steps: progressSteps(updated) });
   } catch (err) { next(err); }
@@ -178,6 +188,14 @@ router.post("/requests/:id/estimate", protect, requireEstimator, async (req, res
       surveyStatus: "ESTIMATE_READY",
       estimateSubmittedAt: new Date().toISOString(),
       estimateBy: req.user.id,
+    });
+    audit(req, {
+      action: "estimate.submitted",
+      category: "jobs",
+      entityType: "booking",
+      entityId: booking.id,
+      summary: `Submitted an estimate of ${estimate.total} for request ${booking.id}`,
+      meta: { total: estimate.total, service: booking.category || "", role: req.user.role },
     });
     res.json({ success: true, booking: updated, estimate, steps: progressSteps(updated) });
   } catch (err) { next(err); }
@@ -296,6 +314,14 @@ router.post("/users", protect, requireAdmin, async (req, res, next) => {
       }
     }
 
+    audit(req, {
+      action: "user.created",
+      category: "users",
+      entityType: "user",
+      entityId: user.id,
+      summary: `Created ${roleLabel(role)} account for ${firstName} ${lastName}`,
+      meta: { role, phone, email },
+    });
     res.status(201).json({ success: true, user: toAdminUser(user) });
   } catch (err) { next(err); }
 });
@@ -314,6 +340,14 @@ router.patch("/users/:id", protect, requireAdmin, async (req, res, next) => {
     }
 
     const updated = await User.findByIdAndUpdate(target.id, { status });
+    audit(req, {
+      action: status === "active" ? "user.activated" : "user.deactivated",
+      category: "users",
+      entityType: "user",
+      entityId: target.id,
+      summary: `Set ${fullName(target) || target.phone || target.email} to ${status}`,
+      meta: { from: target.status, to: status },
+    });
     res.json({ success: true, user: toAdminUser(updated || { ...target, status }) });
   } catch (err) { next(err); }
 });
@@ -345,6 +379,14 @@ router.delete("/users/:id", protect, requireAdmin, async (req, res, next) => {
     // key blocks the delete and the admin only sees a generic failure.
     if (target.role === "fundi") await FundiProfile.deleteOne({ userId: target.id });
     await User.deleteOne({ id: target.id });
+    audit(req, {
+      action: "user.deleted",
+      category: "users",
+      entityType: "user",
+      entityId: target.id,
+      summary: `Deleted ${roleLabel(target.role)} account ${fullName(target) || target.phone || target.email}`,
+      meta: { role: target.role, phone: target.phone, email: target.email },
+    });
     res.json({ success: true, id: target.id });
   } catch (err) {
     if (err && err.code === "23503") {
@@ -425,6 +467,14 @@ router.patch("/fundis/:id", protect, requireAdmin, async (req, res, next) => {
     await User.findByIdAndUpdate(user.id, { status });
     const profiles = await FundiProfile.find({ userId: user.id });
     const profile = (profiles || [])[0];
+    audit(req, {
+      action: status === "active" ? "fundi.activated" : "fundi.suspended",
+      category: "users",
+      entityType: "user",
+      entityId: user.id,
+      summary: `${status === "active" ? "Reactivated" : "Suspended"} fundi ${fullName(user) || user.phone}`,
+      meta: { from: user.status, to: status },
+    });
     res.json({ success: true, fundi: toAdminFundi({ ...user, status }, profile) });
   } catch (err) { next(err); }
 });
@@ -519,6 +569,14 @@ router.post("/verifications/:userId", protect, requireAdmin, async (req, res, ne
       return res.status(404).json({ success: false, message: "Fundi profile not found" });
     }
 
+    audit(req, {
+      action: decision === "approve" ? "verification.approved" : "verification.rejected",
+      category: "verifications",
+      entityType: "user",
+      entityId: user.id,
+      summary: `${decision === "approve" ? "Approved" : "Rejected"} verification for ${fullName(user) || user.phone}`,
+      meta: { note: note || "", phone: user.phone },
+    });
     res.json({
       success: true,
       verification: {
@@ -601,6 +659,44 @@ router.get("/bookings", protect, requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Audit trail ──────────────────────────────────────────────────────────
+// Append-only log of every auth/admin/job/booking event recorded by
+// auditService. Newest first, filterable, paginated.
+
+router.get("/audit-logs", protect, requireAdmin, async (req, res, next) => {
+  try {
+    const { getSupabase } = require("../config/supabase");
+    const sb = getSupabase();
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(5, parseInt(req.query.pageSize, 10) || 25));
+    const offset = (page - 1) * pageSize;
+
+    let q = sb.from("audit_logs").select("*", { count: "exact" });
+    if (req.query.category) q = q.eq("category", String(req.query.category));
+    if (req.query.action) q = q.eq("action", String(req.query.action));
+    const search = String(req.query.search || "").trim().replace(/[%,()"']/g, " ").trim();
+    if (search) {
+      const like = `%${search}%`;
+      q = q.or(`actorName.ilike.${like},summary.ilike.${like},"entityId".ilike.${like},action.ilike.${like}`);
+    }
+    if (req.query.from) q = q.gte("created_at", String(req.query.from));
+    if (req.query.to) q = q.lte("created_at", String(req.query.to));
+
+    const { data, error, count } = await q
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      logs: data || [],
+      total: count || 0,
+      page,
+      pageSize,
+    });
+  } catch (err) { next(err); }
+});
+
 // ── Platform-wide numbers behind the dashboard and reports ───────────────
 
 router.get("/stats", protect, requireAdmin, async (req, res, next) => {
@@ -608,7 +704,7 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
     const { getSupabase } = require("../config/supabase");
     const sb = getSupabase();
     const [usersRes, bookingsRes, profilesRes] = await Promise.all([
-      sb.from("users").select("id, role, status"),
+      sb.from("users").select("id, role, status, created_at"),
       sb.from("bookings")
         .select('id, category, status, "surveyStatus", agreedPrice, proposedPrice, estimate, created_at')
         .order("created_at", { ascending: false })
@@ -680,6 +776,70 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
       if (bucket) bucket.value += 1;
     });
 
+    // ── Reports page aggregates ──────────────────────────────────────────
+    // Last 30 days of requests (daily) and the last six calendar months for
+    // revenue and sign-ups — the data behind the analytics charts.
+    const requestsTrend = [];
+    for (let i = 29; i >= 0; i--) {
+      const day = new Date(today);
+      day.setDate(today.getDate() - i);
+      requestsTrend.push({
+        label: day.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+        value: 0,
+        start: day.getTime(),
+      });
+    }
+    rows.forEach((row) => {
+      const at = row.created_at ? Date.parse(row.created_at) : NaN;
+      if (Number.isNaN(at)) return;
+      const bucket = requestsTrend.find((b) => at >= b.start && at < b.start + 86400000);
+      if (bucket) bucket.value += 1;
+    });
+
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: d.toLocaleDateString("en-GB", { month: "short" }),
+        users: 0,
+        revenue: 0,
+      });
+    }
+    const monthOf = (value) => {
+      const at = value ? Date.parse(value) : NaN;
+      if (Number.isNaN(at)) return null;
+      const d = new Date(at);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    };
+    users.forEach((u) => {
+      const key = monthOf(u.created_at);
+      const bucket = key && months.find((m) => m.key === key);
+      if (bucket) bucket.users += 1;
+    });
+    rows.forEach((row) => {
+      if (row.status !== "COMPLETED") return;
+      const key = monthOf(row.created_at);
+      const bucket = key && months.find((m) => m.key === key);
+      if (bucket) bucket.revenue += bookingPrice(row);
+    });
+    const avgValue = stage.completed ? Math.round(completedValue / stage.completed) : 0;
+
+    const windowStart = requestsTrend.length ? requestsTrend[0].start : 0;
+    const newUsers30d = users.filter((u) => {
+      const at = u.created_at ? Date.parse(u.created_at) : NaN;
+      return !Number.isNaN(at) && at >= windowStart;
+    }).length;
+
+    const stages = [
+      { label: "Awaiting", value: stage.awaiting },
+      { label: "Assigned", value: stage.assigned },
+      { label: "Ready", value: stage.ready },
+      { label: "Completed", value: stage.completed },
+      { label: "Cancelled", value: stage.cancelled },
+    ];
+
     res.json({
       success: true,
       stats: {
@@ -703,6 +863,14 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
           cancelled: stage.cancelled,
           completedValue,
           trend: trend.map(({ label, value }) => ({ label, value })),
+        },
+        analytics: {
+          requestsTrend: requestsTrend.map(({ label, value }) => ({ label, value })),
+          revenueTrend: months.map(({ label, revenue }) => ({ label, value: revenue })),
+          usersTrend: months.map(({ label, users: count }) => ({ label, value: count })),
+          stages,
+          newUsers30d,
+          avgValue,
         },
       },
     });
@@ -747,7 +915,17 @@ router.put("/platform-settings", protect, requireAdmin, async (req, res, next) =
       changed = true;
     }
 
-    if (changed) await settings.save();
+    if (changed) {
+      await settings.save();
+      audit(req, {
+        action: "settings.updated",
+        category: "settings",
+        entityType: "platform_settings",
+        entityId: settings.id,
+        summary: "Updated platform settings",
+        meta: { keys: Object.keys(req.body) },
+      });
+    }
 
     res.json({
       success: true,

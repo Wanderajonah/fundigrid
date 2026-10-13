@@ -1,12 +1,15 @@
 interface Props {
   data: { label: string; value: number }[];
   height?: number;
+  // Draw every nth x-axis label (dense series such as a 30-day trend would
+  // otherwise overlap). 1 keeps every label, as before.
+  labelEvery?: number;
 }
 
 // Weekly count line chart (SVG so it inherits the console palette and needs
 // no charting dependency). Flat data draws along the baseline, as in the
 // reference design.
-export default function LineChart({ data, height = 240 }: Props) {
+export default function LineChart({ data, height = 240, labelEvery = 1 }: Props) {
   const W = 640;
   const H = height;
   const pad = { top: 18, right: 16, bottom: 30, left: 40 };
@@ -61,16 +64,18 @@ export default function LineChart({ data, height = 240 }: Props) {
         )}
 
         {data.map((d, i) => (
-          <g key={d.label}>
+          <g key={`${d.label}-${i}`}>
             <circle cx={x(i)} cy={y(d.value)} r="4" fill="var(--color-primary)" />
-            <text
-              x={x(i)}
-              y={H - 8}
-              textAnchor="middle"
-              className="fill-slate-400 text-xs"
-            >
-              {d.label}
-            </text>
+            {i % labelEvery === 0 && (
+              <text
+                x={x(i)}
+                y={H - 8}
+                textAnchor="middle"
+                className="fill-slate-400 text-xs"
+              >
+                {d.label}
+              </text>
+            )}
           </g>
         ))}
       </svg>

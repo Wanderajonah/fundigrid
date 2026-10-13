@@ -443,6 +443,32 @@ create index if not exists notifications_user_read_idx
   on notifications ("userId", read, created_at desc);
 
 -- ============================================================
+-- audit_logs (append-only trail behind /admin/audit)
+-- Deliberately no foreign key on "actorId": the trail must outlive the
+-- account it describes (deleted users, failed sign-ins with no user row).
+-- ============================================================
+create table if not exists audit_logs (
+  id          text primary key default gen_random_uuid()::text,
+  "actorId"   text,
+  "actorName" text not null default '',
+  "actorRole" text not null default '',
+  action      text not null,
+  category    text not null default 'users'
+              check (category in ('auth','users','verifications','jobs','bookings','settings')),
+  "entityType" text not null default '',
+  "entityId"  text not null default '',
+  summary     text not null default '',
+  "ipAddress" text not null default '',
+  "userAgent" text not null default '',
+  meta        jsonb not null default '{}'::jsonb,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists audit_logs_created_idx on audit_logs (created_at desc);
+create index if not exists audit_logs_category_idx on audit_logs (category, created_at desc);
+create index if not exists audit_logs_action_idx   on audit_logs (action, created_at desc);
+
+-- ============================================================
 -- Directory & booking lookup indexes
 -- ============================================================
 create index if not exists fundiprofiles_skills_gin on fundiprofiles using gin (skills);
@@ -470,6 +496,7 @@ alter table email_otps            enable row level security;
 alter table platform_settings     enable row level security;
 alter table admin_notifications   enable row level security;
 alter table notifications         enable row level security;
+alter table audit_logs            enable row level security;
 
 -- Optional cleanup jobs (requires the pg_cron extension):
 --   create extension if not exists pg_cron;

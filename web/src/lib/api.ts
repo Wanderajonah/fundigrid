@@ -530,6 +530,54 @@ export interface AdminStats {
     completedValue: number;
     trend: { label: string; value: number }[];
   };
+  /** Extra aggregates for the reports page (absent on older backends). */
+  analytics?: {
+    requestsTrend: { label: string; value: number }[];
+    revenueTrend: { label: string; value: number }[];
+    usersTrend: { label: string; value: number }[];
+    stages: { label: string; value: number }[];
+    newUsers30d: number;
+    avgValue: number;
+  };
+}
+
+// ── Audit trail ──
+
+export type AuditCategory = 'auth' | 'users' | 'verifications' | 'jobs' | 'bookings' | 'settings';
+
+export interface AdminAuditLog {
+  id: string;
+  actorId: string | null;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  category: AuditCategory;
+  entityType: string;
+  entityId: string;
+  summary: string;
+  ipAddress: string;
+  userAgent: string;
+  meta: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AuditLogQuery {
+  page?: number;
+  pageSize?: number;
+  category?: AuditCategory | '';
+  search?: string;
+}
+
+export function getAdminAuditLogs(query: AuditLogQuery = {}) {
+  const params = new URLSearchParams();
+  if (query.page) params.set('page', String(query.page));
+  if (query.pageSize) params.set('pageSize', String(query.pageSize));
+  if (query.category) params.set('category', query.category);
+  if (query.search?.trim()) params.set('search', query.search.trim());
+  const qs = params.toString();
+  return request<{ success: boolean; logs: AdminAuditLog[]; total: number; page: number; pageSize: number }>(
+    `/admin/audit-logs${qs ? `?${qs}` : ''}`,
+  );
 }
 
 export interface SettingsToggle {

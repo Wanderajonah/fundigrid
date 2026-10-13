@@ -4,6 +4,7 @@ const { OAuth2Client } = require("google-auth-library");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { publicUser } = require("../controllers/authController");
+const { audit } = require("../services/auditService");
 
 const client = new OAuth2Client(process.env.GOOGLE_WEB_CLIENT_ID);
 
@@ -20,6 +21,7 @@ router.post("/google", async (req, res, next) => {
     const { sub: googleId, email, name, picture } = payload;
 
     let user = await User.findOne({ googleId });
+    let created = false;
     if (!user) {
       user = await User.findOne({ email });
       if (user) {
@@ -30,6 +32,7 @@ router.post("/google", async (req, res, next) => {
       } else {
         // Google gives one display name; store it as first + last.
         const [firstName, ...rest] = String(name || "").trim().split(/\s+/).filter(Boolean);
+        created = true;
         user = await User.create({
           firstName: firstName || "",
           lastName: rest.join(" "),
@@ -44,6 +47,13 @@ router.post("/google", async (req, res, next) => {
     }
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "30d" });
+    audit(req, {
+      action: created ? "auth.register" : "auth.login",
+      category: "auth",
+      actor: user,
+      summary: created ? "Registered with Google" : "Signed in with Google",
+      meta: { provider: "google", email },
+    });
     res.json({ success: true, token, user: publicUser(user) });
   } catch (err) {
     next(err);

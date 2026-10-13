@@ -41,6 +41,7 @@ import AdminFundiProfilePage from './pages/admin/FundiProfilePage';
 import UsersPage from './pages/admin/UsersPage';
 import VerificationsPage from './pages/admin/VerificationsPage';
 import ReportsPage from './pages/admin/ReportsPage';
+import AuditTrailPage from './pages/admin/AuditTrailPage';
 import AdminSettingsPage from './pages/admin/SettingsPage';
 
 import SurveyorLayout from './pages/surveyor/SurveyorLayout';
@@ -133,6 +134,7 @@ function App() {
           <Route path="bookings" element={<BookingsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="audit" element={<AuditTrailPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
 

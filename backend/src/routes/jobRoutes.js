@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/auth");
 const Job = require("../models/Job");
+const { audit } = require("../services/auditService");
 
 router.get("/:userId", protect, async (req, res, next) => {
   try {
@@ -34,6 +35,14 @@ router.post("/", protect, async (req, res, next) => {
       address: req.body.address || "",
       amount: req.body.amount || 0,
     });
+    audit(req, {
+      action: "job.created",
+      category: "jobs",
+      entityType: "job",
+      entityId: job.id,
+      summary: `Created a ${job.category || "service"} request`,
+      meta: { category: job.category || "", amount: job.amount || 0 },
+    });
     res.json({ success: true, job });
   } catch (err) { next(err); }
 });
@@ -45,14 +54,31 @@ router.patch("/detail/:jobId/quote", protect, async (req, res, next) => {
       fundiId: req.user.id,
       status: "quoted",
     });
+    audit(req, {
+      action: "job.quoted",
+      category: "jobs",
+      entityType: "job",
+      entityId: req.params.jobId,
+      summary: `Quoted ${req.body.quoteAmount || 0} for a ${job.category || "service"} request`,
+      meta: { quoteAmount: req.body.quoteAmount || 0, category: job.category || "" },
+    });
     res.json({ success: true, job });
   } catch (err) { next(err); }
 });
 
 router.patch("/detail/:jobId/status", protect, async (req, res, next) => {
   try {
+    const before = await Job.findById(req.params.jobId);
     const job = await Job.findByIdAndUpdate(req.params.jobId, {
       status: req.body.status,
+    });
+    audit(req, {
+      action: "job.status_changed",
+      category: "jobs",
+      entityType: "job",
+      entityId: req.params.jobId,
+      summary: `Moved a ${job.category || "service"} request from ${before ? before.status : "unknown"} to ${job.status}`,
+      meta: { from: before ? before.status : null, to: job.status },
     });
     res.json({ success: true, job });
   } catch (err) { next(err); }

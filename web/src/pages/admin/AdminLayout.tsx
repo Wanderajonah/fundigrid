@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LayoutDashboard, ClipboardList, HardHat, Ruler, Calculator, CalendarCheck, Users, BarChart3, Settings, Search, Menu, X, LogOut, ShieldCheck } from 'lucide-react';
+import { Bell, LayoutDashboard, ClipboardList, HardHat, Ruler, Calculator, CalendarCheck, Users, BarChart3, History, Settings, Search, Menu, X, LogOut, ShieldCheck } from 'lucide-react';
 import logoDark from '../../assets/logo-dark.png';
 import { useAdminStore } from './context/AdminStore';
 
@@ -14,6 +14,7 @@ const NAV = [
   { label: 'Bookings', to: '/admin/bookings', icon: CalendarCheck },
   { label: 'Users', to: '/admin/users', icon: Users },
   { label: 'Reports', to: '/admin/reports', icon: BarChart3 },
+  { label: 'Audit Trail', to: '/admin/audit', icon: History },
   { label: 'Settings', to: '/admin/settings', icon: Settings },
 ];
 

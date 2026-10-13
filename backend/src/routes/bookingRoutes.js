@@ -7,6 +7,7 @@ const FundiProfile = require("../models/FundiProfile");
 const { buildEstimate, estimateFor } = require("../services/estimateService");
 const { surveyStage, readyForFundi, progressSteps } = require("../services/surveyService");
 const { fullName } = require("../controllers/authController");
+const { audit } = require("../services/auditService");
 
 // The fundi drives the middle of the job. The first step (ACCEPTED) comes from
 // /fundi/accept and the last word belongs to the client — see
@@ -136,6 +137,16 @@ router.put("/fundi/status", protect, requireFundi, async (req, res, next) => {
     }
 
     const updated = await Booking.findByIdAndUpdate(bookingId, updates);
+    audit(req, {
+      action: status === "COMPLETED" ? "booking.fundi_finished" : "booking.status_changed",
+      category: "bookings",
+      entityType: "booking",
+      entityId: bookingId,
+      summary: status === "COMPLETED"
+        ? `Marked ${booking.category || "a job"} as finished`
+        : `Moved ${booking.category || "a job"} to ${status}`,
+      meta: { from: booking.status, to: status, category: booking.category || "" },
+    });
     res.json({ success: true, booking: updated, status: updated?.status ?? booking.status });
   } catch (err) { next(err); }
 });
@@ -181,6 +192,14 @@ router.post("/client/confirm-completion", protect, async (req, res, next) => {
       }
     }
 
+    audit(req, {
+      action: "booking.completed",
+      category: "bookings",
+      entityType: "booking",
+      entityId: booking.id,
+      summary: `Confirmed completion of ${booking.category || "a job"}`,
+      meta: { category: booking.category || "", fundiId: booking.fundiId || null },
+    });
     res.json({ success: true, booking: updated });
   } catch (err) { next(err); }
 });
@@ -247,6 +266,14 @@ router.post("/client/create", protect, async (req, res, next) => {
       // Rate-card figure shown as a preview until the surveyor costed it.
       estimate: buildEstimate(category),
       surveyStatus: "AWAITING_ASSIGNMENT",
+    });
+    audit(req, {
+      action: "booking.created",
+      category: "bookings",
+      entityType: "booking",
+      entityId: booking.id,
+      summary: `Booked ${category || "a service"}${fundiName ? ` with ${fundiName}` : ""}`,
+      meta: { category: category || "", fundiId: fundiId || null },
     });
     res.json({ success: true, booking });
   } catch (err) { next(err); }

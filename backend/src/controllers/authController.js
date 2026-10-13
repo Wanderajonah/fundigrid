@@ -5,6 +5,7 @@ const FundiProfile = require("../models/FundiProfile");
 const { sendOtp, verifyOtp } = require("../services/otpService");
 const { validatePassword, isWeak } = require("../services/passwordPolicy");
 const { getSupabase } = require("../config/supabase");
+const { audit } = require("../services/auditService");
 
 // Phone sign-in lockout: five wrong passwords lock the number for ten
 // minutes, three such batches leave it blocked until a password reset.
@@ -168,6 +169,13 @@ const verifyRegister = async (req, res, next) => {
     }
 
     const { user, existed } = await ensureAccount({ phone, firstName, lastName, email, password, role });
+    audit(req, {
+      action: existed ? "auth.login" : "auth.register",
+      category: "auth",
+      actor: user,
+      summary: existed ? "Signed in after OTP verification" : "Registered a new account",
+      meta: { phone, role: user.role },
+    });
     res.json({ ...(await sessionPayload(user)), accountExisted: existed });
   } catch (err) {
     next(err);
@@ -188,6 +196,13 @@ const forgotPassword = async (req, res, next) => {
       if (result && result.success === false) {
         return res.status(502).json({ success: false, message: result.message || "Could not send the verification SMS." });
       }
+      audit(req, {
+        action: "auth.password_reset_requested",
+        category: "auth",
+        actor: user,
+        summary: "Requested a password reset code",
+        meta: { phone },
+      });
     }
     res.json({ success: true });
   } catch (err) {
@@ -229,6 +244,13 @@ const resetPassword = async (req, res, next) => {
     });
 
     const fresh = await User.findById(user.id);
+    audit(req, {
+      action: "auth.password_reset",
+      category: "auth",
+      actor: fresh || user,
+      summary: "Reset password with a verification code",
+      meta: { phone },
+    });
     res.json(await sessionPayload(fresh || user));
   } catch (err) {
     next(err);
@@ -259,6 +281,12 @@ const changePassword = async (req, res, next) => {
     });
 
     const fresh = await User.findById(user.id);
+    audit(req, {
+      action: "auth.password_change",
+      category: "auth",
+      actor: fresh || user,
+      summary: "Changed account password",
+    });
     res.json(await sessionPayload(fresh || user));
   } catch (err) {
     next(err);
@@ -302,6 +330,13 @@ const login = async (req, res, next) => {
 
     if (viaPhone && user) {
       if (user.passwordBlocked) {
+        audit(req, {
+          action: "auth.login_blocked",
+          category: "auth",
+          actor: user,
+          summary: "Sign-in blocked: too many failed attempts",
+          meta: { identifier: phone, reason: "password_blocked" },
+        });
         return res.status(403).json({
           success: false,
           code: "PASSWORD_BLOCKED",
@@ -311,6 +346,13 @@ const login = async (req, res, next) => {
       const lockedUntil = user.lockedUntil ? new Date(user.lockedUntil).getTime() : 0;
       if (lockedUntil > Date.now()) {
         const retryAfterSeconds = Math.ceil((lockedUntil - Date.now()) / 1000);
+        audit(req, {
+          action: "auth.login_blocked",
+          category: "auth",
+          actor: user,
+          summary: "Sign-in blocked: account temporarily locked",
+          meta: { identifier: phone, reason: "locked" },
+        });
         return res.status(429).json({
           success: false,
           code: "LOCKED",
@@ -329,6 +371,14 @@ const login = async (req, res, next) => {
       (await bcrypt.compare(password, user.password || DUMMY_HASH));
 
     if (!ok) {
+      audit(req, {
+        action: "auth.login_failed",
+        category: "auth",
+        actor: user || null,
+        actorName: viaPhone ? phone : email,
+        summary: `Failed sign-in attempt via ${viaPhone ? "phone" : "email"}`,
+        meta: { identifier: viaPhone ? phone : email },
+      });
       if (viaPhone && user && !user.password) {
         return res.status(401).json({
           success: false,
@@ -381,6 +431,13 @@ const login = async (req, res, next) => {
     }
 
     if (user.status && user.status !== "active") {
+      audit(req, {
+        action: "auth.login_blocked",
+        category: "auth",
+        actor: user,
+        summary: "Sign-in blocked: account is inactive",
+        meta: { identifier: viaPhone ? phone : email, reason: "inactive" },
+      });
       return res.status(403).json({ success: false, message: "This account is inactive. Contact the administrator." });
     }
 
@@ -391,6 +448,14 @@ const login = async (req, res, next) => {
     ) {
       await User.findByIdAndUpdate(user.id, clearLockout());
     }
+
+    audit(req, {
+      action: "auth.login",
+      category: "auth",
+      actor: user,
+      summary: `Signed in via ${viaPhone ? "phone" : "email"}`,
+      meta: { identifier: viaPhone ? phone : email, role: user.role },
+    });
 
     res.json(await sessionPayload(user));
   } catch (err) {
