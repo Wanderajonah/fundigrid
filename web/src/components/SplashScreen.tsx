@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import logoLight from '../assets/logo-light.webp';
+import logoWhite from '../assets/logo-white.png';
 
 const DURATION_MS = 5000;
 
@@ -36,10 +36,10 @@ export default function SplashScreen() {
 
       {/* Mark */}
       <img
-        src={logoLight}
+        src={logoWhite}
         alt=""
         aria-hidden
-        className="splash-mark relative h-16 w-auto"
+        className="splash-mark relative h-20 w-auto"
       />
 
       {/* Wordmark */}
