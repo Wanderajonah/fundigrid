@@ -4,7 +4,7 @@ import logoWhite from '../assets/logo-white.png';
 const DURATION_MS = 5000;
 
 /**
- * Full-screen brand splash shown on every launch. Animates for 3 seconds,
+ * Full-screen brand splash shown on every launch. Animates for 5 seconds,
  * fades out, then unmounts itself. Pure CSS keyframes — no animation library.
  */
 export default function SplashScreen() {
@@ -52,10 +52,26 @@ export default function SplashScreen() {
         Skilled artisans, one grid.
       </p>
 
-      {/* Progress bar tied to the 3s duration */}
-      <div className="absolute bottom-16 h-[3px] w-40 overflow-hidden rounded-full bg-white/10">
-        <div className="splash-progress h-full rounded-full bg-primary" />
-      </div>
+      {/* Circular progress ring: stroke draws itself 0% → 100% over 5s */}
+      <svg
+        viewBox="0 0 64 64"
+        className="splash-ring relative mt-8 h-14 w-14"
+        fill="none"
+      >
+        {/* Track */}
+        <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
+        {/* Progress: circumference ≈ 175.93; dashoffset animates full → 0 */}
+        <circle
+          cx="32"
+          cy="32"
+          r="28"
+          stroke="#F5A623"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="175.93"
+          className="splash-ring-progress"
+        />
+      </svg>
     </div>
   );
 }

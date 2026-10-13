@@ -106,8 +106,9 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
 
 /* ── Splash screen ──
    5-second animated launch screen. Container fades in, logo scales up,
-   wordmark words slide in staggered, tagline fades, progress bar fills,
-   then the whole overlay fades out. All timings are CSS-only. */
+   wordmark words slide in staggered, tagline fades, a circular ring draws
+   itself 0→100% while slowly spinning, then the overlay fades out.
+   All timings are CSS-only. */
 @keyframes splash-container-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -139,9 +140,19 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
   to   { opacity: 1; }
 }
 
-@keyframes splash-progress-fill {
-  from { width: 0%; }
-  to   { width: 100%; }
+@keyframes splash-ring-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes splash-ring-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes splash-ring-draw {
+  from { stroke-dashoffset: 175.93; }
+  to   { stroke-dashoffset: 0; }
 }
 
 .splash-enter {
@@ -172,8 +183,18 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
   animation: splash-tagline-in 0.6s ease-out 0.75s both;
 }
 
-.splash-progress {
-  animation: splash-progress-fill 5s linear both;
+.splash-ring {
+  animation: splash-ring-in 0.5s ease-out 0.9s both,
+             splash-ring-spin 3s linear 0.9s infinite;
+  transform-origin: center;
+}
+
+.splash-ring-progress {
+  stroke-dashoffset: 175.93;
+  transform: rotate(-90deg);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: splash-ring-draw 5s linear both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -183,7 +204,8 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
   .splash-glow,
   .splash-word,
   .splash-tagline,
-  .splash-progress {
+  .splash-ring,
+  .splash-ring-progress {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
