@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import circleTopLeft from '../assets/circle.png';
+import squareBottomRight from '../assets/square.png';
 import logoWhite from '../assets/logo-white.png';
 
-const DURATION_MS = 5000;
+const DURATION_MS = 15000;
 
 /**
- * Full-screen brand splash shown on every launch. Animates for 5 seconds,
- * fades out, then unmounts itself. Pure CSS keyframes — no animation library.
+ * Full-screen splash shown on every launch. Holds for 15 seconds, fades out,
+ * then unmounts itself. Pure CSS keyframes — no animation library.
  */
 export default function SplashScreen() {
   const [state, setState] = useState<'visible' | 'fading' | 'gone'>('visible');
@@ -25,53 +27,46 @@ export default function SplashScreen() {
     <div
       aria-hidden
       className={
-        'fixed inset-0 z-[100] flex flex-col items-center justify-center bg-navy-950 ' +
+        'fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-navy-950 ' +
         (state === 'fading' ? 'splash-fade-out' : 'splash-enter')
       }
     >
-      {/* Soft amber glow behind the mark */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="splash-glow h-[420px] w-[420px] rounded-full bg-primary/15 blur-3xl" />
-      </div>
+      {/* Corner art: circle bleeds off the top-left, square off the bottom-right */}
+      <img
+        src={circleTopLeft}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-0 w-[420px] select-none sm:w-[560px] lg:w-[680px]"
+      />
+      <img
+        src={squareBottomRight}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute bottom-0 right-0 w-[480px] select-none sm:w-[620px] lg:w-[760px]"
+      />
 
       {/* Mark */}
       <img
         src={logoWhite}
         alt=""
         aria-hidden
-        className="splash-mark relative h-20 w-auto"
+        className="relative mb-7 h-20 w-auto"
       />
 
-      {/* Wordmark */}
-      <h1 className="relative mt-5 text-3xl font-extrabold tracking-tight text-white">
-        <span className="splash-word inline-block">Fundi</span>
-        <span className="splash-word splash-word-2 inline-block text-primary">Grid</span>
-      </h1>
+      {/* Wipe reveal: a second copy of the wordmark fills in left → right.
+          Text lives in the DOM (not `content`) so "Grid" can take the brand
+          colour in both the ghost and the revealed layer. */}
+      <span className="splash-loader">
+        Fundi<span className="splash-loader-brand">Grid</span>
+        <span className="splash-loader-fill" aria-hidden>
+          Fundi<span className="splash-loader-brand">Grid</span>
+        </span>
+      </span>
 
-      <p className="splash-tagline relative mt-2 text-sm text-white/60">
-        Skilled artisans, one grid.
+      {/* Tagline under the loader */}
+      <p className="relative mt-6 max-w-[19rem] text-center text-sm leading-relaxed tracking-[0.14em] text-slate-300/75 sm:max-w-md sm:text-base">
+        Connecting skilled artisans with clients across Uganda
       </p>
-
-      {/* Circular progress ring: stroke draws itself 0% → 100% over 5s */}
-      <svg
-        viewBox="0 0 64 64"
-        className="splash-ring relative mt-8 h-14 w-14"
-        fill="none"
-      >
-        {/* Track */}
-        <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
-        {/* Progress: circumference ≈ 175.93; dashoffset animates full → 0 */}
-        <circle
-          cx="32"
-          cy="32"
-          r="28"
-          stroke="#F5A623"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray="175.93"
-          className="splash-ring-progress"
-        />
-      </svg>
     </div>
   );
 }

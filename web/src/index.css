@@ -105,10 +105,8 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
 }
 
 /* ── Splash screen ──
-   5-second animated launch screen. Container fades in, logo scales up,
-   wordmark words slide in staggered, tagline fades, a circular ring draws
-   itself 0→100% while slowly spinning, then the overlay fades out.
-   All timings are CSS-only. */
+   15-second launch overlay: fades in, runs the wipe-reveal loader, then
+   fades out. All timings are CSS-only. */
 @keyframes splash-container-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -119,40 +117,69 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
   to   { opacity: 0; }
 }
 
-@keyframes splash-mark-in {
-  0%   { opacity: 0; transform: scale(0.4) rotate(-8deg); }
-  60%  { opacity: 1; transform: scale(1.08) rotate(1deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+/* Splash loader: the unfilled wordmark sits hollow — "Fundi" with a white
+   stroke, "Grid" with a brand-amber stroke — then a second copy on top is
+   revealed left to right by animating its clipping width 0 → 100% over 15s
+   (matching the splash hold), filling "Fundi" white and "Grid" amber.
+   The white glow applies to "Fundi" only — "Grid" fills without a halo.
+   --size scales the strokes, glow and letter spacing. */
+.splash-loader {
+  --color-1: #263238;
+  --color-2: #fff;
+  --size: 1.5px;
+
+  /* 72px at full width, capped down so the wordmark never overflows small screens */
+  font-size: clamp(40px, 13vw, calc(48 * var(--size)));
+  display: inline-block;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  color: var(--color-1);
+  box-sizing: border-box;
+  -webkit-text-stroke: calc(1 * var(--size)) var(--color-2);
+  text-shadow:
+    0 0 calc(2 * var(--size)) var(--color-2),
+    0 0 calc(1 * var(--size)) var(--color-2),
+    0 0 calc(1 * var(--size)) var(--color-2);
+  letter-spacing: calc(2 * var(--size));
+  position: relative;
 }
 
-@keyframes splash-glow-pulse {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50%      { opacity: 1;   transform: scale(1.12); }
+/* Unfilled "Grid" is hollow with a brand-amber outline; the wipe then fills
+   it solid amber, and the leftover ghost stroke matches so no seam shows.
+   Grid carries no white glow, so the fill never picks up a white halo. */
+.splash-loader > .splash-loader-brand {
+  color: var(--color-1);
+  -webkit-text-stroke: calc(1 * var(--size)) var(--color-primary);
+  text-shadow: none;
 }
 
-@keyframes splash-word-in {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
+.splash-loader-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--color-2);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  -webkit-text-stroke: 0;
+  animation: splash-loader-reveal 15s linear infinite;
 }
 
-@keyframes splash-tagline-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+/* The revealed copy is solid, so the wipe visibly fills each word in —
+   Grid drops the inherited white glow so it fills as clean amber. */
+.splash-loader-fill .splash-loader-brand {
+  color: var(--color-primary);
+  text-shadow: none;
 }
 
-@keyframes splash-ring-in {
-  from { opacity: 0; transform: scale(0.6); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes splash-ring-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-@keyframes splash-ring-draw {
-  from { stroke-dashoffset: 175.93; }
-  to   { stroke-dashoffset: 0; }
+@keyframes splash-loader-reveal {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
 }
 
 .splash-enter {
@@ -163,49 +190,11 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
   animation: splash-container-out 0.55s ease-in both;
 }
 
-.splash-mark {
-  animation: splash-mark-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.splash-glow {
-  animation: splash-glow-pulse 2.4s ease-in-out infinite;
-}
-
-.splash-word {
-  animation: splash-word-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
-}
-
-.splash-word-2 {
-  animation-delay: 0.42s;
-}
-
-.splash-tagline {
-  animation: splash-tagline-in 0.6s ease-out 0.75s both;
-}
-
-.splash-ring {
-  animation: splash-ring-in 0.5s ease-out 0.9s both,
-             splash-ring-spin 3s linear 0.9s infinite;
-  transform-origin: center;
-}
-
-.splash-ring-progress {
-  stroke-dashoffset: 175.93;
-  transform: rotate(-90deg);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: splash-ring-draw 5s linear both;
-}
-
+/* The loader wipe always plays — it is the only feedback on the splash, and
+   a left-to-right fill is gentle enough to keep under reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   .splash-enter,
-  .splash-fade-out,
-  .splash-mark,
-  .splash-glow,
-  .splash-word,
-  .splash-tagline,
-  .splash-ring,
-  .splash-ring-progress {
+  .splash-fade-out {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
