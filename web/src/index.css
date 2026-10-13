@@ -103,3 +103,88 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
 .theme-admin aside *:hover {
   scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
 }
+
+/* ── Splash screen ──
+   3-second animated launch screen. Container fades in, logo scales up,
+   wordmark words slide in staggered, tagline fades, progress bar fills,
+   then the whole overlay fades out. All timings are CSS-only. */
+@keyframes splash-container-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes splash-container-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes splash-mark-in {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-8deg); }
+  60%  { opacity: 1; transform: scale(1.08) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes splash-glow-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.12); }
+}
+
+@keyframes splash-word-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splash-tagline-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes splash-progress-fill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+.splash-enter {
+  animation: splash-container-in 0.4s ease-out both;
+}
+
+.splash-fade-out {
+  animation: splash-container-out 0.55s ease-in both;
+}
+
+.splash-mark {
+  animation: splash-mark-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.splash-glow {
+  animation: splash-glow-pulse 2.4s ease-in-out infinite;
+}
+
+.splash-word {
+  animation: splash-word-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+}
+
+.splash-word-2 {
+  animation-delay: 0.42s;
+}
+
+.splash-tagline {
+  animation: splash-tagline-in 0.6s ease-out 0.75s both;
+}
+
+.splash-progress {
+  animation: splash-progress-fill 3s linear 0.15s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-enter,
+  .splash-fade-out,
+  .splash-mark,
+  .splash-glow,
+  .splash-word,
+  .splash-tagline,
+  .splash-progress {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

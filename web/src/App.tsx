@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import { FundiLayout } from './components/layout/FundiLayout';
 import RequireAuth from './components/RequireAuth';
+import SplashScreen from './components/SplashScreen';
 import { AuthProvider } from './context/AuthContext';
 
 // The login screen loads eagerly (first paint); everything else is split so
@@ -60,6 +61,8 @@ function RouteFallback() {
 
 function App() {
   return (
+    <>
+    <SplashScreen />
     <AuthProvider>
     <BrowserRouter>
       <Suspense fallback={<RouteFallback />}>
@@ -164,6 +167,7 @@ function App() {
       </Suspense>
     </BrowserRouter>
     </AuthProvider>
+    </>
   );
 }
 
