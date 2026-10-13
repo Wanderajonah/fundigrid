@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  ApiError,
   getCachedUser,
   getProfile,
   login,
@@ -49,8 +50,11 @@ function persist(token: string, user: SessionUser) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // A cached session renders immediately; the profile round-trip refreshes in
+  // the background. First-time visitors (no cache) still wait for the initial
+  // check so we don't flash the login page at signed-in users.
   const [user, setUser] = useState<SessionUser | null>(() => getCachedUser());
-  const [initializing, setInitializing] = useState(true);
+  const [initializing, setInitializing] = useState(() => !(getCachedUser() && getProfileToken()));
   const [passwordWeak, setPasswordWeak] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
 
@@ -62,12 +66,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCachedUser(payload.user);
       if (typeof payload.passwordWeak === 'boolean') setPasswordWeak(payload.passwordWeak);
       if (typeof payload.hasPassword === 'boolean') setHasPassword(payload.hasPassword);
-    } catch {
-      setToken(null);
-      setCachedUser(null);
-      setUser(null);
-      setPasswordWeak(false);
-      setHasPassword(false);
+    } catch (e) {
+      // Only a definite rejection ends the session. Transient failures (slow
+      // backend, dropped network) keep the cached user so a flaky refresh
+      // never logs you out.
+      if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+        setToken(null);
+        setCachedUser(null);
+        setUser(null);
+        setPasswordWeak(false);
+        setHasPassword(false);
+      }
     }
   }, []);
 

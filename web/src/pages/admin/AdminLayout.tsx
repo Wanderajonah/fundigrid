@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, LayoutDashboard, ClipboardList, HardHat, Ruler, Calculator, CalendarCheck, Users, BarChart3, History, Settings, Search, Menu, X, LogOut, ShieldCheck } from 'lucide-react';
-import logoDark from '../../assets/logo-dark.png';
+import logoDark from '../../assets/logo-dark.webp';
 import { useAdminStore } from './context/AdminStore';
 
 const NAV = [

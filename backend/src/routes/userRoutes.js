@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middleware/auth");
+const { protect, invalidateUserCache } = require("../middleware/auth");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
 const { publicUser, profileExtras } = require("../controllers/authController");
@@ -127,6 +127,7 @@ router.put("/update", protect, async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+    invalidateUserCache(req.user.id);
     // New paperwork moves the fundi into the admin's review queue.
     if (updates.verificationDocs !== undefined || updates.referees !== undefined) {
       await requestVerification(user, {
@@ -149,6 +150,7 @@ router.put("/location", protect, async (req, res, next) => {
     if (req.body.address !== undefined) updates.locationLabel = String(req.body.address);
     const user = await User.findByIdAndUpdate(req.user.id, updates);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    invalidateUserCache(req.user.id);
     const { password, ...safeUser } = user;
     res.json({ success: true, user: safeUser });
   } catch (err) { next(err); }

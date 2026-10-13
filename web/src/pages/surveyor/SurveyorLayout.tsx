@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ClipboardList, LogOut, Menu, X, Bell } from 'lucide-react';
-import logoDark from '../../assets/logo-dark.png';
+import logoDark from '../../assets/logo-dark.webp';
 import { useAuth } from '../../context/AuthContext';
 
 const NAV = [{ label: 'My Requests', to: '/surveyor', icon: ClipboardList, end: true }];

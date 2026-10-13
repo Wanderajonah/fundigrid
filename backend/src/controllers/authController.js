@@ -6,6 +6,7 @@ const { sendOtp, verifyOtp } = require("../services/otpService");
 const { validatePassword, isWeak } = require("../services/passwordPolicy");
 const { getSupabase } = require("../config/supabase");
 const { audit } = require("../services/auditService");
+const { invalidateUserCache } = require("../middleware/auth");
 
 // Phone sign-in lockout: five wrong passwords lock the number for ten
 // minutes, three such batches leave it blocked until a password reset.
@@ -242,6 +243,7 @@ const resetPassword = async (req, res, next) => {
       password: await bcrypt.hash(String(password), 10),
       ...clearLockout(),
     });
+    invalidateUserCache(user.id);
 
     const fresh = await User.findById(user.id);
     audit(req, {
@@ -279,6 +281,7 @@ const changePassword = async (req, res, next) => {
       password: await bcrypt.hash(String(password), 10),
       ...clearLockout(),
     });
+    invalidateUserCache(user.id);
 
     const fresh = await User.findById(user.id);
     audit(req, {

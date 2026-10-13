@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react';
-import logoLight from '../../assets/logo-light.png';
-import cityIllustration from '../../assets/cityillustration.png';
-import upperCorner from '../../assets/uppercorner.png';
-import semicircles from '../../assets/semicircles.png';
+import logoLight from '../../assets/logo-light.webp';
+import cityIllustration from '../../assets/cityillustration.webp';
+import upperCorner from '../../assets/uppercorner.webp';
+import semicircles from '../../assets/semicircles.webp';
 import { type Role } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 

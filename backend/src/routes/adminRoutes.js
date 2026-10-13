@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
-const { protect } = require("../middleware/auth");
+const { protect, invalidateUserCache } = require("../middleware/auth");
 const Booking = require("../models/Booking");
 const User = require("../models/User");
 const FundiProfile = require("../models/FundiProfile");
@@ -340,6 +340,7 @@ router.patch("/users/:id", protect, requireAdmin, async (req, res, next) => {
     }
 
     const updated = await User.findByIdAndUpdate(target.id, { status });
+    invalidateUserCache(target.id);
     audit(req, {
       action: status === "active" ? "user.activated" : "user.deactivated",
       category: "users",
@@ -379,6 +380,7 @@ router.delete("/users/:id", protect, requireAdmin, async (req, res, next) => {
     // key blocks the delete and the admin only sees a generic failure.
     if (target.role === "fundi") await FundiProfile.deleteOne({ userId: target.id });
     await User.deleteOne({ id: target.id });
+    invalidateUserCache(target.id);
     audit(req, {
       action: "user.deleted",
       category: "users",
@@ -465,6 +467,7 @@ router.patch("/fundis/:id", protect, requireAdmin, async (req, res, next) => {
     }
 
     await User.findByIdAndUpdate(user.id, { status });
+    invalidateUserCache(user.id);
     const profiles = await FundiProfile.find({ userId: user.id });
     const profile = (profiles || [])[0];
     audit(req, {

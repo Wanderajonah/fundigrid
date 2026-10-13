@@ -9,7 +9,9 @@ export default function RequireAuth({ children, role }: { children: ReactNode; r
   const { user, initializing } = useAuth();
   const location = useLocation();
 
-  if (initializing) {
+  // Blank only for first-time visitors while the session is being checked.
+  // Signed-in users (cached session) render instantly.
+  if (!user && initializing) {
     return <div className="min-h-screen bg-[#FAFAFA]" />;
   }
 

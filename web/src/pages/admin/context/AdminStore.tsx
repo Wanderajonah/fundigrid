@@ -2,7 +2,7 @@
 // estimates, surveyors, fundis, users, bookings) is read from and written to
 // the backend.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ApiError,
   assignAdminSurveyor,
@@ -207,43 +207,78 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Surveyor cards count jobs from the requests list; keep the latest mapping
+  // in a ref so the surveyor loader can run on its own.
+  const jobsRef = useRef<JobRequest[]>([]);
+
+  const applyRequestRows = useCallback((rows: AdminRequest[]) => {
+    const mappedJobs = rows.map(toJob);
+    jobsRef.current = mappedJobs;
+    setJobs(mappedJobs);
+    setEstimates(
+      rows
+        .filter(r => isAssignedOrReady(r.surveyStatus) && r.surveyStatus !== 'AWAITING_ASSIGNMENT')
+        .map(toEstimate),
+    );
+  }, []);
+
+  // Per-domain loaders: a mutation refetches only what it touched instead of
+  // re-firing all seven endpoints (each costs a full auth + query round-trip).
+  const loadRequests = useCallback(async () => {
+    const res = await getAdminRequests();
+    applyRequestRows(res.requests || []);
+  }, [applyRequestRows]);
+
+  const loadSurveyors = useCallback(async () => {
+    const res = await getAdminSurveyors();
+    setSurveyors((res.surveyors || []).map(s => toSurveyor(s, jobsRef.current)));
+  }, []);
+
+  const loadFundis = useCallback(async () => {
+    const res = await getAdminFundis();
+    setFundis((res.fundis || []).map(toFundi));
+  }, []);
+
+  const loadUsers = useCallback(async () => {
+    const res = await getAdminUsers();
+    setUsers((res.users || []).map(toUser));
+  }, []);
+
+  const loadBookings = useCallback(async () => {
+    const res = await getAdminBookings();
+    setBookings((res.bookings || []).map(toBooking));
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    const res = await getAdminStats();
+    setStats(res.stats);
+  }, []);
+
+  const loadVerifications = useCallback(async () => {
+    const res = await getAdminVerifications('pending');
+    setVerifications(res.verifications || []);
+  }, []);
+
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [requestRes, surveyorRes, fundiRes, userRes, bookingRes, statsRes, verificationRes] =
-        await Promise.all([
-          getAdminRequests(),
-          getAdminSurveyors(),
-          getAdminFundis(),
-          getAdminUsers(),
-          getAdminBookings(),
-          getAdminStats(),
-          // The review queue drives the dashboard's pending-verification card.
-          getAdminVerifications('pending'),
-        ]);
-
-      const rows = requestRes.requests || [];
-      const mappedJobs = rows.map(toJob);
-
-      setJobs(mappedJobs);
-      setEstimates(
-        rows
-          .filter(r => isAssignedOrReady(r.surveyStatus) && r.surveyStatus !== 'AWAITING_ASSIGNMENT')
-          .map(toEstimate),
-      );
-      setSurveyors((surveyorRes.surveyors || []).map(s => toSurveyor(s, mappedJobs)));
-      setFundis((fundiRes.fundis || []).map(toFundi));
-      setUsers((userRes.users || []).map(toUser));
-      setBookings((bookingRes.bookings || []).map(toBooking));
-      setStats(statsRes.stats);
-      setVerifications(verificationRes.verifications || []);
+      await Promise.all([
+        loadRequests(),
+        loadSurveyors(),
+        loadFundis(),
+        loadUsers(),
+        loadBookings(),
+        loadStats(),
+        // The review queue drives the dashboard's pending-verification card.
+        loadVerifications(),
+      ]);
       setError('');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not reach the server');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadRequests, loadSurveyors, loadFundis, loadUsers, loadBookings, loadStats, loadVerifications]);
 
   useEffect(() => {
     reload();
@@ -254,10 +289,13 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const getFundi = useCallback((id?: string) => fundis.find(f => f.id === id), [fundis]);
 
   // Mutations surface their failures on the store so a page that fires and
-  // forgets still shows the message instead of an unhandled rejection.
-  const run = useCallback(async (action: () => Promise<void>) => {
+  // forgets still shows the message instead of an unhandled rejection. The
+  // affected slices refetch quietly (no global loading flip) so the page
+  // updates in place.
+  const run = useCallback(async (action: () => Promise<unknown>, slices: (() => Promise<void>)[] = []) => {
     try {
       await action();
+      if (slices.length) await Promise.all(slices.map(slice => slice()));
       setError('');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not reach the server');
@@ -266,55 +304,47 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const assignSurveyor = useCallback(async (jobId: string, surveyorId: string) => {
-    await run(async () => {
-      await assignAdminSurveyor(jobId, surveyorId);
-      await reload();
-    });
-  }, [reload, run]);
+    await run(() => assignAdminSurveyor(jobId, surveyorId), [loadRequests, loadSurveyors, loadStats]);
+  }, [run, loadRequests, loadSurveyors, loadStats]);
 
   const submitEstimate = useCallback(async (jobId: string, input: EstimateInput) => {
-    await run(async () => {
-      await submitAdminEstimate(jobId, input);
-      await reload();
-    });
-  }, [reload, run]);
+    await run(() => submitAdminEstimate(jobId, input), [loadRequests, loadStats]);
+  }, [run, loadRequests, loadStats]);
 
   const createUser = useCallback(async (input: CreateUserInput) => {
-    await run(async () => {
-      await createAdminUser(input);
-      await reload();
-    });
-  }, [reload, run]);
+    await run(() => createAdminUser(input), [loadUsers, loadStats]);
+  }, [run, loadUsers, loadStats]);
 
   const setUserStatus = useCallback(async (userId: string, status: 'Active' | 'Inactive') => {
-    await run(async () => {
-      await updateAdminUser(userId, { status: status === 'Active' ? 'active' : 'inactive' });
-      await reload();
-    });
-  }, [reload, run]);
+    await run(
+      () => updateAdminUser(userId, { status: status === 'Active' ? 'active' : 'inactive' }),
+      [loadUsers, loadStats],
+    );
+  }, [run, loadUsers, loadStats]);
 
   const deleteUser = useCallback(async (userId: string) => {
-    await run(async () => {
-      await deleteAdminUser(userId);
-      await reload();
-    });
-  }, [reload, run]);
+    await run(() => deleteAdminUser(userId), [loadUsers, loadStats]);
+  }, [run, loadUsers, loadStats]);
 
   const setFundiStatus = useCallback(async (fundiId: string, status: FundiStatus) => {
-    await run(async () => {
-      await updateAdminFundi(fundiId, { status: status === 'Suspended' ? 'inactive' : 'active' });
-      await reload();
-    });
-  }, [reload, run]);
+    await run(
+      () => updateAdminFundi(fundiId, { status: status === 'Suspended' ? 'inactive' : 'active' }),
+      [loadFundis, loadStats],
+    );
+  }, [run, loadFundis, loadStats]);
 
   const reviewVerification = useCallback(
     async (userId: string, decision: { decision: 'approve' | 'reject'; note?: string }) => {
-      await run(async () => {
-        await reviewAdminVerification(userId, decision);
-        await reload();
-      });
+      // Approving can turn the user into an active fundi, so the fundi list
+      // and the user counts refresh alongside the queue itself.
+      await run(() => reviewAdminVerification(userId, decision), [
+        loadVerifications,
+        loadFundis,
+        loadUsers,
+        loadStats,
+      ]);
     },
-    [reload, run],
+    [run, loadVerifications, loadFundis, loadUsers, loadStats],
   );
 
   const value = useMemo(

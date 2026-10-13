@@ -151,6 +151,15 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new ApiError(0, 'Cannot reach the server');
   }
 
+  // A SPA rewrite (e.g. Vercel's /* -> index.html) swallows /api/* and answers
+  // with the app shell. Fail loudly instead of choking on HTML as JSON.
+  if ((res.headers.get('content-type') || '').includes('text/html')) {
+    throw new ApiError(
+      0,
+      'API returned a web page instead of JSON — check VITE_API_URL / the /api rewrite',
+    );
+  }
+
   let payload: any = null;
   try {
     payload = await res.json();

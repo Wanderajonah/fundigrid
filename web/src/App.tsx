@@ -1,56 +1,68 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import { FundiLayout } from './components/layout/FundiLayout';
 import RequireAuth from './components/RequireAuth';
 import { AuthProvider } from './context/AuthContext';
 
+// The login screen loads eagerly (first paint); everything else is split so
+// the initial bundle stays small on slow connections.
 import LoginPage from './pages/public/LoginPage';
 
-import ClientDashboard from './pages/client/Dashboard';
-import RequestJobPage from './pages/client/RequestJobPage';
-import MyRequestsPage from './pages/client/MyRequestsPage';
-import RequestProcessingPage from './pages/client/RequestProcessingPage';
-import AvailableFundisPage from './pages/client/AvailableFundisPage';
-import FundiProfilePage from './pages/client/FundiProfilePage';
-import BookingPage from './pages/client/BookingPage';
-import BookingConfirmedPage from './pages/client/BookingConfirmedPage';
-import JobTrackingPage from './pages/client/JobTrackingPage';
-import MessagesPage from './pages/client/MessagesPage';
-import ReviewsPage from './pages/client/ReviewsPage';
-import ProfilePage from './pages/client/ProfilePage';
-import SettingsPage from './pages/client/SettingsPage';
+const ClientDashboard = lazy(() => import('./pages/client/Dashboard'));
+const RequestJobPage = lazy(() => import('./pages/client/RequestJobPage'));
+const MyRequestsPage = lazy(() => import('./pages/client/MyRequestsPage'));
+const RequestProcessingPage = lazy(() => import('./pages/client/RequestProcessingPage'));
+const AvailableFundisPage = lazy(() => import('./pages/client/AvailableFundisPage'));
+const FundiProfilePage = lazy(() => import('./pages/client/FundiProfilePage'));
+const BookingPage = lazy(() => import('./pages/client/BookingPage'));
+const BookingConfirmedPage = lazy(() => import('./pages/client/BookingConfirmedPage'));
+const JobTrackingPage = lazy(() => import('./pages/client/JobTrackingPage'));
+const MessagesPage = lazy(() => import('./pages/client/MessagesPage'));
+const ReviewsPage = lazy(() => import('./pages/client/ReviewsPage'));
+const ProfilePage = lazy(() => import('./pages/client/ProfilePage'));
+const SettingsPage = lazy(() => import('./pages/client/SettingsPage'));
 
-import FundiDashboardPage from './pages/fundi/FundiDashboard';
-import FundiJobsPage from './pages/fundi/FundiJobsPage';
-import FundiJobDetailPage from './pages/fundi/FundiJobDetailPage';
-import FundiEarningsPage from './pages/fundi/FundiEarningsPage';
-import FundiProfileSettingsPage from './pages/fundi/FundiProfileSettingsPage';
+const FundiDashboardPage = lazy(() => import('./pages/fundi/FundiDashboard'));
+const FundiJobsPage = lazy(() => import('./pages/fundi/FundiJobsPage'));
+const FundiJobDetailPage = lazy(() => import('./pages/fundi/FundiJobDetailPage'));
+const FundiEarningsPage = lazy(() => import('./pages/fundi/FundiEarningsPage'));
+const FundiProfileSettingsPage = lazy(() => import('./pages/fundi/FundiProfileSettingsPage'));
 
 import { AdminStoreProvider } from './pages/admin/context/AdminStore';
 import AdminLayout from './pages/admin/AdminLayout';
-import DashboardOverview from './pages/admin/DashboardOverview';
-import JobRequestsPage from './pages/admin/JobRequestsPage';
-import JobRequestDetailPage from './pages/admin/JobRequestDetailPage';
-import AssignSurveyorPage from './pages/admin/AssignSurveyorPage';
-import EstimatesPage from './pages/admin/EstimatesPage';
-import EstimateDetailPage from './pages/admin/EstimateDetailPage';
-import FundisPage from './pages/admin/FundisPage';
-import SurveyorsPage from './pages/admin/SurveyorsPage';
-import BookingsPage from './pages/admin/BookingsPage';
-import AdminFundiProfilePage from './pages/admin/FundiProfilePage';
-import UsersPage from './pages/admin/UsersPage';
-import VerificationsPage from './pages/admin/VerificationsPage';
-import ReportsPage from './pages/admin/ReportsPage';
-import AuditTrailPage from './pages/admin/AuditTrailPage';
-import AdminSettingsPage from './pages/admin/SettingsPage';
+const DashboardOverview = lazy(() => import('./pages/admin/DashboardOverview'));
+const JobRequestsPage = lazy(() => import('./pages/admin/JobRequestsPage'));
+const JobRequestDetailPage = lazy(() => import('./pages/admin/JobRequestDetailPage'));
+const AssignSurveyorPage = lazy(() => import('./pages/admin/AssignSurveyorPage'));
+const EstimatesPage = lazy(() => import('./pages/admin/EstimatesPage'));
+const EstimateDetailPage = lazy(() => import('./pages/admin/EstimateDetailPage'));
+const FundisPage = lazy(() => import('./pages/admin/FundisPage'));
+const SurveyorsPage = lazy(() => import('./pages/admin/SurveyorsPage'));
+const BookingsPage = lazy(() => import('./pages/admin/BookingsPage'));
+const AdminFundiProfilePage = lazy(() => import('./pages/admin/FundiProfilePage'));
+const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
+const VerificationsPage = lazy(() => import('./pages/admin/VerificationsPage'));
+const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
+const AuditTrailPage = lazy(() => import('./pages/admin/AuditTrailPage'));
+const AdminSettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 
 import SurveyorLayout from './pages/surveyor/SurveyorLayout';
-import AssignedRequestsPage from './pages/surveyor/AssignedRequestsPage';
+const AssignedRequestsPage = lazy(() => import('./pages/surveyor/AssignedRequestsPage'));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+      <div className="h-8 w-8 rounded-full border-2 border-line border-t-primary animate-spin" />
+    </div>
+  );
+}
 
 function App() {
   return (
     <AuthProvider>
     <BrowserRouter>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
@@ -149,6 +161,7 @@ function App() {
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
     </AuthProvider>
   );
