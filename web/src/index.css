@@ -105,7 +105,7 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
 }
 
 /* ── Splash screen ──
-   3-second animated launch screen. Container fades in, logo scales up,
+   5-second animated launch screen. Container fades in, logo scales up,
    wordmark words slide in staggered, tagline fades, progress bar fills,
    then the whole overlay fades out. All timings are CSS-only. */
 @keyframes splash-container-in {
@@ -173,7 +173,7 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
 }
 
 .splash-progress {
-  animation: splash-progress-fill 3s linear 0.15s both;
+  animation: splash-progress-fill 5s linear 0.15s both;
 }
 
 @media (prefers-reduced-motion: reduce) {
