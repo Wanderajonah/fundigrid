@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { Role } from '../lib/api';
 
-const HOME: Record<Role, string> = { customer: '/client', fundi: '/fundi', admin: '/admin', surveyor: '/surveyor' };
+const HOME: Record<Role, string> = { customer: '/client', fundi: '/fundi', admin: '/admin' };
 
 export default function RequireAuth({ children, role }: { children: ReactNode; role?: Role }) {
   const { user, initializing } = useAuth();

@@ -30,12 +30,19 @@ const envBase = (process.env.EXPO_PUBLIC_API_URL || '').trim().replace(/\/+$/, '
 const envHost = hostnameOf(envBase);
 const devHost = metroHost();
 
-// Hostnames (tunnel / production) in env are explicit, so they win.
-// Raw IPs in env go stale whenever DHCP reassigns, so the device's Metro
-// host is preferred over them and both stay on the candidate list.
-const primary = envBase && envHost && !isIp(envHost) ? envBase : devHost ? withHost(devHost) : envBase;
+// An explicit hostname in env (e.g. https://fundigrid.onrender.com/api) is a
+// deliberate target: use it alone so development builds talk to the deployed
+// backend instead of silently falling back to the LAN / Metro host.
+const explicitTarget = Boolean(envBase && envHost && !isIp(envHost));
 
-const candidates = [primary, envBase, devHost ? withHost(devHost) : ''].filter(
+// Raw IPs in env go stale whenever DHCP reassigns, so with no explicit
+// hostname the device's Metro host is preferred over them and both stay on
+// the candidate list.
+const primary = explicitTarget ? envBase : devHost ? withHost(devHost) : envBase;
+
+const rest = explicitTarget ? [] : [envBase, devHost ? withHost(devHost) : ''];
+
+const candidates = [primary, ...rest].filter(
   (base, i, arr): base is string => Boolean(base) && arr.indexOf(base) === i
 );
 

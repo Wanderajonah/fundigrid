@@ -7,7 +7,7 @@ import { useAdminStore } from './context/AdminStore';
 import { JOB_STATUS_META, type JobStatus } from './data/meta';
 import { jobRef } from '../../lib/jobRef';
 
-const STATUSES: JobStatus[] = ['New', 'Under Review', 'Surveyor Assigned', 'Estimate Ready', 'Completed', 'Cancelled'];
+const STATUSES: JobStatus[] = ['New', 'Accepted', 'In Progress', 'Completed', 'Cancelled'];
 const RANGES = [
   { key: 'all', label: 'Any time' },
   { key: '7', label: 'Last 7 days' },
@@ -56,7 +56,7 @@ export default function JobRequestsPage() {
 
   return (
     <div className="max-w-[1360px] mx-auto">
-      <PageHeader title="Job Requests" subtitle="Review and assign incoming job requests from clients" />
+      <PageHeader title="Job Requests" subtitle="Incoming job requests from clients and the fundis handling them" />
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
@@ -137,7 +137,7 @@ export default function JobRequestsPage() {
               {!loading && slice.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
-                    {jobs.length === 0 ? 'No requests are waiting on a surveyor yet.' : 'No requests match these filters.'}
+                    {jobs.length === 0 ? 'No job requests yet.' : 'No requests match these filters.'}
                   </td>
                 </tr>
               )}

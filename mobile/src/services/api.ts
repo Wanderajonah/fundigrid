@@ -7,6 +7,29 @@ type RequestOptions = {
   token?: string;
 };
 
+// React Native's fetch has no timeout of its own, so an instance that never
+// answers (asleep Render free tier, dead Wi-Fi) would hang the screen forever.
+const WAKE_TIMEOUT_MS = 45_000;
+const REQUEST_TIMEOUT_MS = 20_000;
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, token } = options;
 
@@ -23,45 +46,56 @@ async function request<T = any>(path: string, options: RequestOptions = {}): Pro
     (base, i, arr) => arr.indexOf(base) === i
   );
 
+  let lastFailure = '';
+
   for (const base of bases) {
-    let res: Response;
-    try {
-      res = await fetch(`${base}${path}`, {
-        method,
-        headers,
-        body: payload,
-      });
-    } catch {
-      continue;
-    }
+    // A free-tier Render instance sleeps after ~15 min of idle and takes up to
+    // a minute to wake, so the first request after idle routinely times out.
+    // Give it a long leash once, then a shorter one on the retry.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt > 0) await delay(2000);
 
-    promoteApiBase(base);
-
-    let data: any = {};
-    try {
-      data = await res.json();
-    } catch {
-      if (!res.ok) {
-        throw apiError(`Request failed with status ${res.status}`, { status: res.status });
+      let res: Response;
+      try {
+        res = await fetchWithTimeout(`${base}${path}`, {
+          method,
+          headers,
+          body: payload,
+        }, attempt === 0 ? WAKE_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
+      } catch (err) {
+        // Only network-level failures land here; real API errors throw below.
+        lastFailure = err instanceof Error ? err.message : String(err);
+        continue;
       }
-      return data as T;
-    }
 
-    if (!res.ok) {
-      throw apiError(data.message || data.error || 'Request failed', {
-        code: data.code,
-        status: res.status,
-        attemptsRemaining: data.attemptsRemaining,
-        retryAfterSeconds: data.retryAfterSeconds,
-      });
-    }
+      promoteApiBase(base);
 
-    return data;
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        if (!res.ok) {
+          throw apiError(`Request failed with status ${res.status}`, { status: res.status });
+        }
+        return data as T;
+      }
+
+      if (!res.ok) {
+        throw apiError(data.message || data.error || 'Request failed', {
+          code: data.code,
+          status: res.status,
+          attemptsRemaining: data.attemptsRemaining,
+          retryAfterSeconds: data.retryAfterSeconds,
+        });
+      }
+
+      return data;
+    }
   }
 
   throw apiError(
-    `Cannot reach server. Tried ${bases.join(', ')}. ` +
-      'Make sure the backend is running and this device is on the same network.',
+    `Cannot reach server${lastFailure ? ` (${lastFailure})` : ''}. Tried ${bases.join(', ')}. ` +
+      'The service may be waking up after idle — wait a minute and try again.',
     { code: 'NETWORK' }
   );
 }
@@ -202,28 +236,6 @@ export async function updateLocation(token: string, data: { lat: number; lng: nu
   return request('/users/location', { method: 'PUT', body: data, token });
 }
 
-// ── Jobs ──
-
-export async function getJobsByUser(token: string, userId: string) {
-  return request(`/jobs/${userId}`, { token });
-}
-
-export async function getJobById(token: string, jobId: string) {
-  return request(`/jobs/detail/${jobId}`, { token });
-}
-
-export async function createJob(token: string, data: any) {
-  return request('/jobs', { method: 'POST', body: data, token });
-}
-
-export async function respondQuote(token: string, jobId: string, amount: number) {
-  return request(`/jobs/detail/${jobId}/quote`, { method: 'PATCH', body: { amount }, token });
-}
-
-export async function updateJobStatus(token: string, jobId: string, status: string) {
-  return request(`/jobs/detail/${jobId}/status`, { method: 'PATCH', body: { status }, token });
-}
-
 // ── Bookings ──
 
 export async function getFundiBookings(token: string) {
@@ -259,17 +271,37 @@ export async function confirmCompletion(token: string, bookingId: string) {
   return request('/bookings/client/confirm-completion', { method: 'POST', body: { bookingId }, token });
 }
 
-// What has happened to a request so far, up to the surveyor's estimate.
+// What has happened to a request so far, plus the client-facing timeline.
 export async function getRequestProgress(token: string, bookingId: string) {
   return request(`/bookings/progress/${bookingId}`, { token });
 }
 
-// Attach a fundi to an already-submitted request. The server refuses until
-// the surveyor's estimate is ready.
+// Attach a fundi to an already-submitted request. Requests reach fundis the
+// moment they are created, so this is just the client making their choice.
 export async function selectFundi(token: string, bookingId: string, fundiId: string, patch?: any) {
   return request('/bookings/client/select-fundi', {
     method: 'POST',
     body: { bookingId, fundiId, ...(patch || {}) },
+    token,
+  });
+}
+
+// The fundi prices the job after seeing the site. The client has to accept
+// before work may start — see respondToQuote.
+export async function sendQuote(token: string, bookingId: string, amount: number) {
+  return request('/bookings/fundi/quote', {
+    method: 'POST',
+    body: { bookingId, amount },
+    token,
+  });
+}
+
+// Accepting locks the quote in as the agreed price; declining sends it back so
+// the fundi can price the job again.
+export async function respondToQuote(token: string, bookingId: string, action: 'accept' | 'decline') {
+  return request('/bookings/client/price-response', {
+    method: 'POST',
+    body: { bookingId, action },
     token,
   });
 }
@@ -285,12 +317,6 @@ export async function payForBooking(
 
 export async function getPaymentReceipt(token: string, bookingId: string) {
   return request(`/payments/${bookingId}`, { token });
-}
-
-// ── Estimates ──
-
-export async function getJobEstimate(token: string, category: string) {
-  return request(`/bookings/estimate?category=${encodeURIComponent(category)}`, { token });
 }
 
 // ── Maps ──

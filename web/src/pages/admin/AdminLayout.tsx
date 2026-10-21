@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LayoutDashboard, ClipboardList, HardHat, Ruler, Calculator, CalendarCheck, Users, BarChart3, History, Settings, Search, Menu, X, LogOut, ShieldCheck } from 'lucide-react';
+import { Bell, LayoutDashboard, ClipboardList, HardHat, CalendarCheck, Users, BarChart3, History, Settings, Search, Menu, X, LogOut, ShieldCheck } from 'lucide-react';
 import logoDark from '../../assets/logo-dark.webp';
 import { useAdminStore } from './context/AdminStore';
 
@@ -9,8 +9,6 @@ const NAV = [
   { label: 'Job Requests', to: '/admin/requests', icon: ClipboardList },
   { label: 'Fundis', to: '/admin/fundis', icon: HardHat },
   { label: 'Verifications', to: '/admin/verifications', icon: ShieldCheck },
-  { label: 'Surveyors', to: '/admin/surveyors', icon: Ruler },
-  { label: 'Estimates', to: '/admin/estimates', icon: Calculator },
   { label: 'Bookings', to: '/admin/bookings', icon: CalendarCheck },
   { label: 'Users', to: '/admin/users', icon: Users },
   { label: 'Reports', to: '/admin/reports', icon: BarChart3 },

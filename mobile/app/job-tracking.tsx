@@ -9,7 +9,7 @@ import RatingStars from '../src/components/RatingStars';
 import { AppMap, DEFAULT_REGION, MapPin, MapRegion, formatKm, haversineKm, regionFromPoints } from '../src/maps';
 import { getCurrentLocation } from '../src/services/location';
 import { connectSocket } from '../src/services/socket';
-import { confirmCompletion, getClientBookings, getFundiById } from '../src/services/api';
+import { confirmCompletion, getClientBookings, getFundiById, respondToQuote } from '../src/services/api';
 import { useAuth } from '../src/contexts/AuthContext';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -186,17 +186,52 @@ export default function JobTrackingScreen() {
     booking?.category ||
     'Service provider';
   const fundiRating = Number(fundi?.rating ?? 0);
-  const priceCandidate = booking?.agreedPrice ?? booking?.proposedPrice ?? null;
-  const agreedAmount = Number(priceCandidate) > 0 ? Number(priceCandidate) : null;
-  const estimateAmount =
-    booking?.estimate && Number(booking.estimate.total) > 0 ? Number(booking.estimate.total) : null;
-  // Until a price is agreed in chat, the job estimate is what gets paid.
-  const payableAmount = agreedAmount ?? estimateAmount;
   const isPending = status === 'PENDING';
   const isCancelled = status === 'CANCELLED' || status === 'DISPUTED';
   const isCompleted = status === 'COMPLETED';
   const isPaid = booking?.paymentStatus === 'held' || booking?.paymentStatus === 'released';
   const awaitingSignoff = status === 'IN_PROGRESS' && Boolean(booking?.fundiCompleted);
+
+  // The agreed price is what gets paid. Before that, the fundi's quote is
+  // waiting on this screen for the client's answer.
+  const priceAgreed = Boolean(booking?.priceAgreed) && Number(booking?.agreedPrice) > 0;
+  const agreedAmount = priceAgreed ? Number(booking?.agreedPrice) : null;
+  const quote = Number(booking?.proposedPrice) || 0;
+  const quotePending = !priceAgreed && quote > 0 && !isCancelled && !isCompleted;
+  const payableCandidate = Number(booking?.agreedPrice) || quote;
+  const payableAmount = payableCandidate > 0 ? payableCandidate : null;
+
+  const [answering, setAnswering] = useState<'accept' | 'decline' | null>(null);
+
+  const submitQuoteAnswer = async (action: 'accept' | 'decline') => {
+    if (!token || !booking) return;
+    setAnswering(action);
+    try {
+      await respondToQuote(token, String(booking.id || bookingId || ''), action);
+      await loadBooking();
+    } catch (e: any) {
+      Alert.alert('Could not save that', e?.message || 'Please try again.');
+    } finally {
+      setAnswering(null);
+    }
+  };
+
+  // Declining sends the quote back so the fundi can price the job again.
+  const answerQuote = (action: 'accept' | 'decline') => {
+    if (answering) return;
+    if (action === 'decline') {
+      Alert.alert(
+        'Decline this quote?',
+        'Your fundi will price the job again. Nothing is paid until you accept a price.',
+        [
+          { text: 'Keep it', style: 'cancel' },
+          { text: 'Decline', style: 'destructive', onPress: () => submitQuoteAnswer('decline') },
+        ],
+      );
+      return;
+    }
+    submitQuoteAnswer('accept');
+  };
 
   const callFundi = async () => {
     const phone = String(fundi?.phone || '').trim();
@@ -295,6 +330,38 @@ export default function JobTrackingScreen() {
           ) : null}
         </View>
 
+        {/* The fundi has priced the job — nothing starts until this is answered. */}
+        {quotePending && (
+          <View style={styles.quoteCard}>
+            <View style={styles.quoteHead}>
+              <Ionicons name="pricetag" size={18} color={colors.primary} />
+              <Text style={styles.quoteTitle}>{fundiName} has quoted a price</Text>
+            </View>
+            <Text style={styles.quoteAmount}>UGX {quote.toLocaleString()}</Text>
+            <Text style={styles.quoteText}>
+              Accept to lock the price in and let the work start — or decline and ask for a new quote.
+            </Text>
+            <View style={styles.quoteActions}>
+              <PrimaryButton
+                title="Decline"
+                variant="secondary"
+                compact
+                disabled={answering !== null}
+                onPress={() => answerQuote('decline')}
+                style={{ flex: 1 }}
+              />
+              <PrimaryButton
+                title="Accept price"
+                compact
+                loading={answering === 'accept'}
+                disabled={answering !== null}
+                onPress={() => answerQuote('accept')}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        )}
+
         <View style={styles.fundiCard}>
           <View style={styles.fundiRow}>
             {fundi?.profilePhoto ? (
@@ -336,8 +403,8 @@ export default function JobTrackingScreen() {
               value:
                 agreedAmount != null
                   ? `UGX ${agreedAmount.toLocaleString()}`
-                  : estimateAmount != null
-                    ? `Estimate UGX ${estimateAmount.toLocaleString()}`
+                  : quotePending
+                    ? `Quoted UGX ${quote.toLocaleString()}`
                     : 'Not agreed yet',
             },
             {
@@ -481,6 +548,19 @@ const styles = StyleSheet.create({
   },
   bannerText: { flex: 1, fontFamily: fonts.semibold, fontSize: 13 },
   bannerMeta: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkSoft },
+  quoteCard: {
+    backgroundColor: colors.primaryFaint,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  quoteHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  quoteTitle: { flex: 1, fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  quoteAmount: { fontFamily: fonts.bold, fontSize: 26, color: colors.ink },
+  quoteText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.inkSoft },
+  quoteActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   fundiCard: {
     borderWidth: 1,
     borderColor: colors.border,

@@ -43,7 +43,7 @@ export function setCachedUser(user: SessionUser | null) {
   else localStorage.removeItem(USER_KEY);
 }
 
-export type Role = 'customer' | 'fundi' | 'admin' | 'surveyor';
+export type Role = 'customer' | 'fundi' | 'admin';
 
 export interface SessionUser {
   id: string;
@@ -114,8 +114,9 @@ export interface Booking {
   status: BookingStatus;
   scheduledFor?: string | null;
   proposedPrice?: number | null;
+  proposedBy?: 'FUNDI' | 'CLIENT' | null;
   agreedPrice?: number | null;
-  priceAgreed?: number | null;
+  priceAgreed?: boolean | null;
   created_at?: string;
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
@@ -329,6 +330,15 @@ export function confirmCompletion(bookingId: string) {
   });
 }
 
+// Accepting locks the fundi's quote in as the agreed price; declining sends it
+// back so the fundi can re-quote. Work cannot start until it is accepted.
+export function respondToQuote(bookingId: string, action: 'accept' | 'decline') {
+  return request<{ success: boolean; booking: Booking }>('/bookings/client/price-response', {
+    method: 'POST',
+    body: { bookingId, action },
+  });
+}
+
 export function updateBookingStatus(bookingId: string, status: FundiBookingStatus) {
   return request<{ success: boolean }>('/bookings/fundi/status', {
     method: 'PUT',
@@ -361,21 +371,9 @@ export function getTransactions() {
   return request<{ success: boolean; transactions: Transaction[] }>('/wallet/transactions');
 }
 
-// ── Admin: quantity surveyor stage ──
-
-export type SurveyStage = 'AWAITING_ASSIGNMENT' | 'SURVEYOR_ASSIGNED' | 'ESTIMATE_READY';
-
-export interface AdminSurveyor {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string | null;
-  email?: string | null;
-  status?: string;
-  district?: string;
-  locationLabel?: string;
-  experience?: number;
-}
+// ── Admin: job requests ──
+// A request is a booking the moment it is created — the client picks a fundi
+// directly and the fundi quotes after seeing the site.
 
 export interface AdminRequest {
   id: string;
@@ -389,32 +387,12 @@ export interface AdminRequest {
   status?: string;
   scheduledFor?: string | null;
   created_at?: string;
-  surveyStatus?: SurveyStage | null;
-  surveyorId?: string | null;
-  surveyorName?: string | null;
-  assignedAt?: string | null;
-  estimateSubmittedAt?: string | null;
-  estimateBy?: string | null;
-  estimate?: {
-    labour?: number;
-    materials?: number;
-    serviceFee?: number;
-    total?: number;
-    currency?: string;
-    source?: string;
-    notes?: string;
-  } | null;
-}
-
-export interface EstimateInput {
-  labour: number;
-  materials: number;
-  serviceFee?: number;
-  notes?: string;
-}
-
-export function getAdminSurveyors() {
-  return request<{ success: boolean; surveyors: AdminSurveyor[] }>('/admin/surveyors');
+  fundiId?: string | null;
+  fundiName?: string | null;
+  agreedPrice?: number | null;
+  proposedPrice?: number | null;
+  proposedBy?: string | null;
+  priceAgreed?: boolean;
 }
 
 export function getAdminRequests() {
@@ -422,34 +400,15 @@ export function getAdminRequests() {
 }
 
 export function getAdminRequest(id: string) {
-  return request<{ success: boolean; booking: AdminRequest; stage?: SurveyStage }>(
+  return request<{ success: boolean; booking: AdminRequest }>(
     `/admin/requests/${encodeURIComponent(id)}`,
   );
 }
 
-export function assignAdminSurveyor(id: string, surveyorId: string) {
-  return request<{ success: boolean }>(`/admin/requests/${encodeURIComponent(id)}/assign-surveyor`, {
-    method: 'POST',
-    body: { surveyorId },
-  });
-}
-
-export function submitAdminEstimate(id: string, input: EstimateInput) {
-  return request<{ success: boolean; estimate: NonNullable<AdminRequest['estimate']> }>(
-    `/admin/requests/${encodeURIComponent(id)}/estimate`,
-    { method: 'POST', body: input },
-  );
-}
-
-// A surveyor's own desk: only the requests assigned to them.
-export function getMySurveyRequests() {
-  return request<{ success: boolean; requests: AdminRequest[] }>('/surveyor/requests');
-}
-
 // ── Admin: users, fundis, bookings and platform numbers ──
 
-export type PlatformRole = 'Client' | 'Fundi' | 'Surveyor' | 'Admin';
-export type RawRole = 'customer' | 'fundi' | 'surveyor' | 'admin';
+export type PlatformRole = 'Client' | 'Fundi' | 'Admin';
+export type RawRole = 'customer' | 'fundi' | 'admin';
 
 export interface AdminUser {
   id: string;
@@ -506,7 +465,7 @@ export interface AdminBooking {
   address: string;
   amount: number;
   status: 'Pending' | 'Accepted' | 'In Progress' | 'Completed' | 'Cancelled';
-  surveyStatus: SurveyStage;
+  priceAgreed: boolean;
   createdAt: string | null;
 }
 
@@ -515,7 +474,6 @@ export interface AdminStats {
     total: number;
     clients: number;
     fundis: number;
-    surveyors: number;
     admins: number;
     active: number;
     activeFundis: number;
@@ -523,9 +481,6 @@ export interface AdminStats {
   };
   requests: {
     total: number;
-    awaiting: number;
-    assigned: number;
-    ready: number;
     completed: number;
     cancelled: number;
     active: number;

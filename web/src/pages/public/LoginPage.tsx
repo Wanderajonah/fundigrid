@@ -8,9 +8,9 @@ import semicircles from '../../assets/semicircles.webp';
 import { type Role } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
-const HOME: Record<Role, string> = { customer: '/client', fundi: '/fundi', admin: '/admin', surveyor: '/surveyor' };
+const HOME: Record<Role, string> = { customer: '/client', fundi: '/fundi', admin: '/admin' };
 
-// Roles with an account-security page (surveyors have none yet).
+// Roles with an account-security page.
 const SETTINGS: Partial<Record<Role, string>> = {
   customer: '/client/settings',
   fundi: '/fundi/settings',

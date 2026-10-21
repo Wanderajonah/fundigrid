@@ -172,7 +172,7 @@ export default function ClientHome() {
             <LinearGradient colors={[colors.ink, '#26364A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { width: cardWidth }]}>
               <View style={styles.heroCopy}>
                 <Text style={[styles.heroTitle, { color: colors.white }]} numberOfLines={2}>Help is closer{`\n`}than you think</Text>
-                <Text style={[styles.heroText, { color: '#D7DEE7' }]}>Find skilled Fundis nearby, get estimates, and book with confidence.</Text>
+                <Text style={[styles.heroText, { color: '#D7DEE7' }]}>Find skilled Fundis nearby, get quotes, and book with confidence.</Text>
                 <Pressable onPress={() => router.push('/available-fundis')} style={styles.heroCta}><Text style={styles.heroCtaText}>Find a Fundi</Text><Ionicons name="arrow-forward" size={16} color={colors.ink} /></Pressable>
               </View>
               <MaterialCommunityIcons name="map-marker-radius-outline" size={116} color="rgba(255,255,255,0.13)" style={styles.heroPattern} />

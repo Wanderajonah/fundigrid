@@ -13,9 +13,8 @@ import { categoryIcon } from '../../lib/categories';
 // text colour and dot vary per status.
 const JOB_PILL: Record<JobStatus, { cls: string; dot: string }> = {
   New: { cls: 'bg-[#E6F3FD] text-[#075985]', dot: '#0284C7' },
-  'Under Review': { cls: 'bg-[#FFF3DE] text-[#92400E]', dot: '#D97706' },
-  'Surveyor Assigned': { cls: 'bg-[#EEE8FD] text-[#5B21B6]', dot: '#7C3AED' },
-  'Estimate Ready': { cls: 'bg-[#FFEDD5] text-[#9A3412]', dot: '#EA580C' },
+  Accepted: { cls: 'bg-[#EEE8FD] text-[#5B21B6]', dot: '#7C3AED' },
+  'In Progress': { cls: 'bg-[#FFF3DE] text-[#92400E]', dot: '#D97706' },
   Completed: { cls: 'bg-[#E3F6EF] text-[#047857]', dot: '#059669' },
   Cancelled: { cls: 'bg-[#FDE7EC] text-[#BE123C]', dot: '#E11D48' },
 };

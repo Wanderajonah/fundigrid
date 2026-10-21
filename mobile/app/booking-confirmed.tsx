@@ -16,7 +16,6 @@ export default function BookingConfirmedScreen() {
     category?: string;
     date?: string;
     time?: string;
-    estimate?: string;
   }>();
 
   const fundiName = params.fundiName ? String(params.fundiName) : 'your fundi';
@@ -24,7 +23,6 @@ export default function BookingConfirmedScreen() {
   const date = params.date ? String(params.date) : '';
   const time = params.time ? String(params.time) : '';
   const bookingId = params.bookingId ? String(params.bookingId) : '';
-  const estimateTotal = params.estimate ? Number(params.estimate) : 0;
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
@@ -36,8 +34,8 @@ export default function BookingConfirmedScreen() {
         </View>
         <Text style={styles.h1}>Request Sent!</Text>
         <Text style={styles.sub}>
-          Your {category} request is with a quantity surveyor now. They price the job before any fundi
-          sees it — track every step below.
+          Your {category} request is with {fundiName}. They quote the price after seeing the site — you
+          accept before any work starts.
         </Text>
 
         <View style={styles.card}>
@@ -57,12 +55,6 @@ export default function BookingConfirmedScreen() {
             <Text style={styles.label}>Time</Text>
             <Text style={styles.value}>{time || 'Flexible'}</Text>
           </View>
-          {estimateTotal > 0 ? (
-            <View style={styles.row}>
-              <Text style={styles.label}>Estimate (indicative)</Text>
-              <Text style={styles.value}>UGX {estimateTotal.toLocaleString()}</Text>
-            </View>
-          ) : null}
         </View>
       </ScrollView>
 

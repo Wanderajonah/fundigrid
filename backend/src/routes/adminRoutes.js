@@ -6,8 +6,6 @@ const Booking = require("../models/Booking");
 const User = require("../models/User");
 const FundiProfile = require("../models/FundiProfile");
 const PlatformSettings = require("../models/PlatformSettings");
-const { buildSurveyEstimate } = require("../services/estimateService");
-const { surveyStage, isAssignable, progressSteps, STAGES } = require("../services/surveyService");
 const { fullName, normalisePhone } = require("../controllers/authController");
 const { audit } = require("../services/auditService");
 
@@ -18,42 +16,20 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Quantity surveyors are assigned by an admin but do the pricing themselves,
-// so both may submit an estimate — the route still checks the assignment.
-function requireEstimator(req, res, next) {
-  if (req.user.role === "admin" || req.user.role === "surveyor") return next();
-  res.status(403).json({ success: false, message: "Surveyor account required" });
-}
-
 router.get("/", (req, res) => {
   res.json({ success: true, message: "Admin API" });
 });
 
-// ── Quantity surveyors ──
+// ── Requests ─────────────────────────────────────────────────────────────
+// Every booking is a request — there is no intermediate stage between the
+// client submitting one and the fundi they picked accepting it.
 
-router.get("/surveyors", protect, requireAdmin, async (req, res, next) => {
-  try {
-    const { getSupabase } = require("../config/supabase");
-    const { data, error } = await getSupabase()
-      .from("users")
-      .select("id, firstName, lastName, phone, email, status, profilePhoto, district, locationLabel, experience")
-      .eq("role", "surveyor")
-      .order("firstName", { ascending: true });
-    if (error) throw error;
-    res.json({ success: true, surveyors: data || [] });
-  } catch (err) { next(err); }
-});
-
-// Requests sitting in the surveyor stage, newest first.
 router.get("/requests", protect, requireAdmin, async (req, res, next) => {
   try {
     const { getSupabase } = require("../config/supabase");
-    // NULL surveyStatus = written before the stage existed; surveyService reads
-    // those as "estimate already ready", so the admin desk shows them too.
     const { data, error } = await getSupabase()
       .from("bookings")
       .select("*")
-      .or(`surveyStatus.is.null,surveyStatus.in.(${STAGES.join(",")})`)
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
@@ -82,15 +58,10 @@ router.get("/requests", protect, requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get("/requests/:id", protect, async (req, res, next) => {
+router.get("/requests/:id", protect, requireAdmin, async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return res.status(404).json({ success: false, message: "Request not found" });
-
-    const user = req.user;
-    if (user.role !== "admin" && booking.surveyorId !== user.id) {
-      return res.status(403).json({ success: false, message: "This request is not assigned to you" });
-    }
 
     let clientName = "Client";
     let clientPhone = "";
@@ -111,93 +82,8 @@ router.get("/requests/:id", protect, async (req, res, next) => {
     res.json({
       success: true,
       booking: { ...booking, clientName, clientPhone },
-      stage: surveyStage(booking),
-      surveyorName: booking.surveyorName || "",
       estimate: booking.estimate || null,
-      steps: progressSteps(booking),
     });
-  } catch (err) { next(err); }
-});
-
-// Step 1 of the stage: point a request at a quantity surveyor.
-router.post("/requests/:id/assign-surveyor", protect, requireAdmin, async (req, res, next) => {
-  try {
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ success: false, message: "Request not found" });
-    if (!isAssignable(booking)) {
-      return res.status(400).json({ success: false, message: "This request already has its estimate" });
-    }
-
-    const surveyor = await User.findById(String(req.body.surveyorId || ""));
-    if (!surveyor || surveyor.role !== "surveyor" || surveyor.status !== "active") {
-      return res.status(400).json({ success: false, message: "Surveyor not found or unavailable" });
-    }
-
-    const surveyorName = fullName(surveyor);
-    const updated = await Booking.findByIdAndUpdate(booking.id, {
-      surveyorId: surveyor.id,
-      surveyorName,
-      surveyStatus: "SURVEYOR_ASSIGNED",
-      assignedAt: new Date().toISOString(),
-    });
-    audit(req, {
-      action: "surveyor.assigned",
-      category: "jobs",
-      entityType: "booking",
-      entityId: booking.id,
-      summary: `Assigned ${surveyorName} to request ${booking.id}`,
-      meta: { surveyorId: surveyor.id, surveyorName, service: booking.category || "" },
-    });
-    res.json({ success: true, booking: updated, steps: progressSteps(updated) });
-  } catch (err) { next(err); }
-});
-
-// Step 2: the surveyor costed the job. This is what unlocks the fundis.
-router.post("/requests/:id/estimate", protect, requireEstimator, async (req, res, next) => {
-  try {
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ success: false, message: "Request not found" });
-
-    const isAdmin = req.user.role === "admin";
-    if (!isAdmin && booking.surveyorId !== req.user.id) {
-      return res.status(403).json({ success: false, message: "This request is assigned to another surveyor" });
-    }
-    if (!booking.surveyorId) {
-      return res.status(400).json({ success: false, message: "Assign a surveyor before submitting an estimate" });
-    }
-
-    const labour = Number(req.body.labour);
-    const materials = Number(req.body.materials);
-    if (!Number.isFinite(labour) || labour < 0 || !Number.isFinite(materials) || materials < 0) {
-      return res.status(400).json({ success: false, message: "Labour and materials must be amounts" });
-    }
-
-    const estimate = buildSurveyEstimate({
-      category: booking.category,
-      labour,
-      materials,
-      serviceFee: req.body.serviceFee,
-      notes: req.body.notes,
-    });
-    if (!(estimate.total > 0)) {
-      return res.status(400).json({ success: false, message: "An estimate needs at least one amount" });
-    }
-
-    const updated = await Booking.findByIdAndUpdate(booking.id, {
-      estimate,
-      surveyStatus: "ESTIMATE_READY",
-      estimateSubmittedAt: new Date().toISOString(),
-      estimateBy: req.user.id,
-    });
-    audit(req, {
-      action: "estimate.submitted",
-      category: "jobs",
-      entityType: "booking",
-      entityId: booking.id,
-      summary: `Submitted an estimate of ${estimate.total} for request ${booking.id}`,
-      meta: { total: estimate.total, service: booking.category || "", role: req.user.role },
-    });
-    res.json({ success: true, booking: updated, estimate, steps: progressSteps(updated) });
   } catch (err) { next(err); }
 });
 
@@ -208,7 +94,6 @@ const USER_FIELDS =
 
 function roleLabel(role) {
   if (role === "fundi") return "Fundi";
-  if (role === "surveyor") return "Surveyor";
   if (role === "admin") return "Admin";
   return "Client";
 }
@@ -256,7 +141,7 @@ router.post("/users", protect, requireAdmin, async (req, res, next) => {
     const phone = normalisePhone(req.body.phone);
     const email = String(req.body.email || "").trim().toLowerCase() || null;
     const password = String(req.body.password || "");
-    const role = ["customer", "fundi", "surveyor", "admin"].includes(req.body.role)
+    const role = ["customer", "fundi", "admin"].includes(req.body.role)
       ? req.body.role
       : "customer";
     const skills = (Array.isArray(req.body.skills)
@@ -597,10 +482,12 @@ router.post("/verifications/:userId", protect, requireAdmin, async (req, res, ne
 // ── Bookings ─────────────────────────────────────────────────────────────
 
 function bookingPrice(booking) {
+  // What was actually agreed comes first, then the fundi's outstanding quote,
+  // then the hidden rate-card fallback.
   const price =
     booking.agreedPrice ??
-    (booking.estimate && booking.estimate.total) ??
     booking.proposedPrice ??
+    (booking.estimate && booking.estimate.total) ??
     0;
   return Number(price) || 0;
 }
@@ -654,8 +541,8 @@ router.get("/bookings", protect, requireAdmin, async (req, res, next) => {
           : "Unassigned",
         address: row.address || "",
         amount: bookingPrice(row),
+        priceAgreed: Boolean(row.priceAgreed),
         status: bookingStatusLabel(row.status),
-        surveyStatus: surveyStage(row),
         createdAt: row.created_at || null,
       })),
     });
@@ -709,7 +596,7 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
     const [usersRes, bookingsRes, profilesRes] = await Promise.all([
       sb.from("users").select("id, role, status, created_at"),
       sb.from("bookings")
-        .select('id, category, status, "surveyStatus", agreedPrice, proposedPrice, estimate, created_at')
+        .select('id, category, status, agreedPrice, proposedPrice, estimate, created_at')
         .order("created_at", { ascending: false })
         .limit(500),
       sb.from("fundiprofiles").select('userId, "verificationStatus"'),
@@ -726,19 +613,18 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
         .map((p) => p.userId),
     );
 
-    const userCounts = { total: users.length, clients: 0, fundis: 0, surveyors: 0, admins: 0, active: 0, activeFundis: 0, pendingFundis: 0 };
+    const userCounts = { total: users.length, clients: 0, fundis: 0, admins: 0, active: 0, activeFundis: 0, pendingFundis: 0 };
     users.forEach((u) => {
       if (u.status === "active") userCounts.active += 1;
       if (u.role === "fundi") {
         userCounts.fundis += 1;
         if (u.status === "active") userCounts.activeFundis += 1;
         if (pendingFundiIds.has(u.id)) userCounts.pendingFundis += 1;
-      } else if (u.role === "surveyor") userCounts.surveyors += 1;
-      else if (u.role === "admin") userCounts.admins += 1;
+      } else if (u.role === "admin") userCounts.admins += 1;
       else userCounts.clients += 1;
     });
 
-    const stage = { awaiting: 0, assigned: 0, ready: 0, completed: 0, cancelled: 0, active: 0 };
+    const stage = { completed: 0, cancelled: 0, active: 0 };
     const byService = {};
     let completedValue = 0;
     rows.forEach((row) => {
@@ -751,10 +637,6 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
         stage.cancelled += 1;
       } else {
         stage.active += 1;
-        const s = surveyStage(row);
-        if (s === "SURVEYOR_ASSIGNED") stage.assigned += 1;
-        else if (s === "ESTIMATE_READY") stage.ready += 1;
-        else stage.awaiting += 1;
       }
     });
 
@@ -836,9 +718,7 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
     }).length;
 
     const stages = [
-      { label: "Awaiting", value: stage.awaiting },
-      { label: "Assigned", value: stage.assigned },
-      { label: "Ready", value: stage.ready },
+      { label: "Active", value: stage.active },
       { label: "Completed", value: stage.completed },
       { label: "Cancelled", value: stage.cancelled },
     ];
@@ -849,9 +729,6 @@ router.get("/stats", protect, requireAdmin, async (req, res, next) => {
         users: userCounts,
         requests: {
           total: rows.length,
-          awaiting: stage.awaiting,
-          assigned: stage.assigned,
-          ready: stage.ready,
           completed: stage.completed,
           cancelled: stage.cancelled,
           active: stage.active,

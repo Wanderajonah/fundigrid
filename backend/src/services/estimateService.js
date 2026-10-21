@@ -1,5 +1,9 @@
-// Job cost estimate — the number shown on the confirm screen and the amount
-// payment falls back to when no price was agreed in chat.
+// Rate-card job costs.
+//
+// The client and the fundi agree the real price between themselves — the
+// fundi quotes after seeing the site. These rates exist only as the amount
+// payment falls back to when nothing was agreed, so they are never shown to
+// anyone.
 //
 // Rates are a per-trade starting point (labour + materials) plus a platform
 // service fee. Keep them here until platform settings get an admin editor,
@@ -44,36 +48,12 @@ function buildEstimate(category) {
   };
 }
 
-// The estimate a quantity surveyor costed by hand. Same shape as the rate-card
-// one so every screen that already renders an estimate keeps working, plus the
-// `source` and the surveyor's own notes.
-function buildSurveyEstimate({ category, labour, materials, serviceFee, notes } = {}) {
-  const label = String(category || "").trim();
-  const lab = Number(labour) || 0;
-  const mat = Number(materials) || 0;
-  const fee =
-    serviceFee !== undefined && serviceFee !== null && serviceFee !== ""
-      ? Math.max(0, Number(serviceFee) || 0)
-      : Math.max(MIN_SERVICE_FEE, Math.round((lab + mat) * SERVICE_FEE_RATE));
-  return {
-    category: label,
-    labour: lab,
-    materials: mat,
-    serviceFee: fee,
-    total: lab + mat + fee,
-    currency: "UGX",
-    source: "surveyor",
-    notes: String(notes || "").trim(),
-    createdAt: new Date().toISOString(),
-  };
-}
-
-// A booking written before estimates existed still needs an amount — rebuild
-// one from its category so payment never ends up with 0.
+// A booking with no agreed price still needs an amount — rebuild one from its
+// category so payment never ends up with 0.
 function estimateFor(booking) {
   const stored = booking && booking.estimate;
   if (stored && Number(stored.total) > 0) return stored;
   return buildEstimate(booking ? booking.category : "");
 }
 
-module.exports = { buildEstimate, buildSurveyEstimate, estimateFor };
+module.exports = { buildEstimate, estimateFor };

@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IMAGES } from '../src/assets';
 import { categoryImage } from '../src/data/categories';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { useAuth } from '../src/contexts/AuthContext';
-import { acceptBooking, declineBooking, getFundiBookingById, updateBookingStatus } from '../src/services/api';
+import { acceptBooking, declineBooking, getFundiBookingById, sendQuote, updateBookingStatus } from '../src/services/api';
 import StatusBadge from '../src/components/StatusBadge';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -38,6 +38,7 @@ export default function FundiJobDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [quoteText, setQuoteText] = useState('');
 
   const load = useCallback(async () => {
     if (!token || !bookingId) {
@@ -48,8 +49,12 @@ export default function FundiJobDetailsScreen() {
     setLoading(true);
     try {
       const data = await getFundiBookingById(token, String(bookingId));
-      setBooking(data?.booking ?? null);
-      if (!data?.booking) setError('Job not found.');
+      const row = data?.booking ?? null;
+      setBooking(row);
+      // Start the composer on whatever was quoted last, so updating a quote
+      // does not mean retyping the whole amount.
+      setQuoteText(row?.proposedPrice ? String(Math.round(Number(row.proposedPrice))) : '');
+      if (!row) setError('Job not found.');
     } catch (e: any) {
       setError(e?.message || 'Could not load this job.');
     } finally {
@@ -103,6 +108,24 @@ export default function FundiJobDetailsScreen() {
     }
   };
 
+  const handleQuote = async () => {
+    if (!token || !bookingId) return;
+    const amount = Math.round(Number(String(quoteText).replace(/[^0-9.]/g, '')));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      Alert.alert('Enter a price', 'Type the amount you want to quote, in UGX.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await sendQuote(token, String(bookingId), amount);
+      await load();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not send your quote.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const category = booking?.category || 'Job Request';
   const status = booking?.status || 'PENDING';
   const isPending = status === 'PENDING';
@@ -112,13 +135,19 @@ export default function FundiJobDetailsScreen() {
   // The client confirms completion, so the fundi's last action is reporting
   // the work finished — nothing after that belongs to them.
   const workFinished = Boolean(booking?.fundiCompleted);
+  const priceAgreed = Boolean(booking?.priceAgreed) && Number(booking?.agreedPrice) > 0;
+  const quoted = Number(booking?.proposedPrice) > 0;
+  const open = !isClosed;
+  // No work starts on an unagreed price: that figure is what payment uses and
+  // what the platform records its commission from.
+  const startBlocked = status === 'ARRIVED' && !priceAgreed;
   const STEPS = [
     { from: 'ACCEPTED', next: 'ON_THE_WAY', label: 'Start travelling' },
     { from: 'ON_THE_WAY', next: 'ARRIVED', label: "I've arrived" },
     { from: 'ARRIVED', next: 'IN_PROGRESS', label: 'Start work' },
     { from: 'IN_PROGRESS', next: 'COMPLETED', label: 'Mark work complete' },
   ];
-  const nextStep = STEPS.find(s => s.from === status);
+  const nextStep = startBlocked ? undefined : STEPS.find(s => s.from === status);
 
   return (
     <View style={styles.root}>
@@ -208,13 +237,43 @@ export default function FundiJobDetailsScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Payment</Text>
               <Text style={styles.messageText}>
-                {booking.agreedPrice
-                  ? `Agreed price: UGX ${Number(booking.agreedPrice).toLocaleString()}`
-                  : Number(booking.estimate?.total) > 0
-                    ? `Client estimate: UGX ${Number(booking.estimate.total).toLocaleString()} — agree the final price with the client on site. Payment is collected after the job is completed.`
-                    : 'Agree a price with the client after inspection. Payment is collected after the job is completed.'}
+                {priceAgreed
+                  ? `Agreed price: UGX ${Number(booking.agreedPrice).toLocaleString()} — payment is collected after the job is completed.`
+                  : quoted
+                    ? `Your quote of UGX ${Number(booking.proposedPrice).toLocaleString()} is waiting for the client to accept.`
+                    : 'Price the job after inspecting the site. The client accepts before you start, and payment is collected once the job is completed.'}
               </Text>
             </View>
+
+            {open && !priceAgreed ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{quoted ? 'Update your quote' : 'Quote a price'}</Text>
+                <Text style={styles.messageText}>
+                  Send what the job will cost. Work can start once the client accepts it.
+                </Text>
+                <View style={styles.quoteRow}>
+                  <Text style={styles.currency}>UGX</Text>
+                  <TextInput
+                    style={styles.quoteInput}
+                    value={quoteText}
+                    onChangeText={setQuoteText}
+                    keyboardType="number-pad"
+                    placeholder="e.g. 250000"
+                    placeholderTextColor={colors.muted}
+                    editable={!actionLoading}
+                  />
+                </View>
+                <Pressable
+                  style={[styles.acceptBtn, (!quoteText || actionLoading) && styles.acceptBtnDisabled]}
+                  onPress={handleQuote}
+                  disabled={!quoteText || actionLoading}
+                >
+                  <Text style={styles.acceptText}>
+                    {actionLoading ? 'Sending…' : quoted ? 'Update quote' : 'Send quote'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </ScrollView>
 
           <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 16, spacing.xxxl) }]}>
@@ -246,6 +305,11 @@ export default function FundiJobDetailsScreen() {
               <View style={styles.statusRow}>
                 <Ionicons name="checkmark-done" size={18} color={colors.primary} />
                 <Text style={styles.statusText}>Work reported finished — waiting for the client to confirm</Text>
+              </View>
+            ) : startBlocked ? (
+              <View style={styles.statusRow}>
+                <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
+                <Text style={styles.statusText}>Send your quote and get approval to start</Text>
               </View>
             ) : nextStep ? (
               <Pressable style={styles.acceptBtn} onPress={() => handleAdvance(nextStep.next)} disabled={actionLoading}>
@@ -348,7 +412,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  acceptBtnDisabled: { opacity: 0.5 },
   acceptText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.black },
+  quoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    height: 52,
+  },
+  currency: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginRight: spacing.sm },
+  quoteInput: { flex: 1, fontFamily: fonts.semibold, fontSize: 16, color: colors.ink, padding: 0 },
   declineBtn: {
     height: 52,
     borderRadius: radius.md,

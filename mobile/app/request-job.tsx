@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const MAX_PHOTOS = 3;
 
-// CalendarField hands back "YYYY-MM-DD"; the surveyor only needs the day, so
+// CalendarField hands back "YYYY-MM-DD"; the booking only needs the day, so
 // we book the default morning slot and the client can pick a time later.
 function dateToScheduled(date: string): string | undefined {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
@@ -93,7 +93,7 @@ export default function RequestJobScreen() {
       return;
     }
     if (!description.trim()) {
-      Alert.alert('Describe the job', 'Add a short description so the surveyor can price it.');
+      Alert.alert('Describe the job', 'Add a short description so fundis know what the job involves.');
       return;
     }
     if (!location.trim()) {
@@ -119,7 +119,7 @@ export default function RequestJobScreen() {
       // One place collects the details; the confirm screen pre-fills from here.
       setRequestDraft({ photos, service: category, description, location, date });
 
-      // Sent to the quantity surveyor first — no fundi sees it yet.
+      // Sent straight to nearby fundis — the fundi quotes after a site visit.
       const data = await createBooking(token, {
         category,
         description: description.trim(),
@@ -270,7 +270,7 @@ export default function RequestJobScreen() {
       <View style={styles.footer}>
         <PrimaryButton title="Submit Request" loading={submitting} onPress={handleSubmit} />
         <Text style={styles.footerNote}>
-          A quantity surveyor prices your job first — you pick a fundi once the estimate is ready.
+          Your request goes to nearby fundis — the one you pick quotes the price after a site visit.
         </Text>
       </View>
     </SafeAreaView>

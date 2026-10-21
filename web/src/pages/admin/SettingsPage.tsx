@@ -11,18 +11,17 @@ import {
 
 const SECTIONS = [
   { key: 'general', label: 'General Settings', desc: 'Platform contact and matching defaults', icon: Building2 },
-  { key: 'notifications', label: 'Notification Settings', desc: 'Alerts for new jobs, estimates and updates', icon: Bell },
+  { key: 'notifications', label: 'Notification Settings', desc: 'Alerts for new jobs and updates', icon: Bell },
   { key: 'payments', label: 'Payment Settings', desc: 'Currency, fees and settlement details', icon: CreditCard },
   { key: 'system', label: 'System Settings', desc: 'Auto-assignment, approvals and limits', icon: Server },
 ];
 
 const TOGGLES = [
   { key: 'newRequest', label: 'New job request alerts', desc: 'Notify admins when a client posts a request', on: true },
-  { key: 'estimateReady', label: 'Estimate ready alerts', desc: 'Notify admins when a surveyor submits an estimate', on: true },
+  { key: 'quoteSent', label: 'Quote alerts', desc: 'Notify admins when a fundi sends a price quote', on: true },
   { key: 'smsUpdates', label: 'SMS updates to customers', desc: 'Send booking status changes by SMS', on: true },
   { key: 'weeklyDigest', label: 'Weekly email digest', desc: 'Summary of requests, jobs and revenue every Monday', on: false },
   { key: 'maintenance', label: 'Maintenance mode', desc: 'Take the platform offline for scheduled work', on: false },
-  { key: 'autoAssign', label: 'Auto-assign surveyors', desc: 'Assign the next available surveyor automatically', on: false },
 ];
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {

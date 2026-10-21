@@ -15,7 +15,7 @@ create table if not exists users (
   email           text,
   phone           text,
   password        text,
-  role            text not null check (role in ('customer','fundi','admin','surveyor')),
+  role            text not null check (role in ('customer','fundi','admin')),
   "fundiEnabled"  boolean not null default false,
   "phoneVerified" boolean not null default false,
   "dateOfBirth"   timestamptz,
@@ -66,16 +66,6 @@ alter table users add column if not exists "failedLoginAttempts" integer not nul
 alter table users add column if not exists "lockedUntil"        timestamptz;
 alter table users add column if not exists "lockoutBatches"     integer not null default 0;
 alter table users add column if not exists "passwordBlocked"    boolean not null default false;
-
--- Quantity surveyors are a fourth role. `create table if not exists` will not
--- touch the check constraint on a database that already exists, so replace it.
-do $$
-begin
-  alter table users drop constraint if exists users_role_check;
-  alter table users
-    add constraint users_role_check
-    check (role in ('customer','fundi','admin','surveyor'));
-end $$;
 
 -- Names are stored as two fields now. Split any legacy `name` into first and
 -- last, then drop the column so nothing can read it back.
@@ -209,21 +199,19 @@ alter table bookings add column if not exists "fundiName" text not null default 
 alter table bookings add column if not exists "scheduledFor" timestamptz;
 alter table bookings add column if not exists "estimate" jsonb;
 
--- Quantity-surveyor stage. A request is created, an admin assigns a surveyor,
--- the surveyor submits a costed estimate, and only then does the request reach
--- fundis. This lives beside `status` (which keeps its original eight values) so
--- no existing status map has to learn a new one. Nullable on purpose: rows
--- written before this stage existed have no surveyor to wait for, and
--- `surveyService.surveyStage` reads NULL as "already past the gate".
-alter table bookings add column if not exists "surveyorId" text references users (id);
-alter table bookings add column if not exists "surveyorName" text not null default '';
-alter table bookings add column if not exists "surveyStatus" text
-  check ("surveyStatus" in ('AWAITING_ASSIGNMENT','SURVEYOR_ASSIGNED','ESTIMATE_READY'));
-alter table bookings add column if not exists "assignedAt" timestamptz;
-alter table bookings add column if not exists "estimateSubmittedAt" timestamptz;
-alter table bookings add column if not exists "estimateBy" text;
-
-create index if not exists bookings_surveyor_idx on bookings ("surveyorId");
+-- The quantity-surveyor stage is gone. Clients deal with fundis directly and
+-- the fundi quotes the price after seeing the site, so a request reaches fundis
+-- the moment it is created. Drop the columns the stage wrote — the foreign key
+-- and its index go with "surveyorId" — delete any surveyor accounts, then
+-- tighten the role check so no new ones can appear. Bookings that were waiting
+-- on a surveyor simply become live requests; their old `estimate` jsonb stays
+-- as the amount payment falls back to.
+alter table bookings drop column if exists "surveyorId";
+alter table bookings drop column if exists "surveyorName";
+alter table bookings drop column if exists "surveyStatus";
+alter table bookings drop column if exists "assignedAt";
+alter table bookings drop column if exists "estimateSubmittedAt";
+alter table bookings drop column if exists "estimateBy";
 
 create index if not exists bookings_client_idx on bookings ("clientId");
 create index if not exists bookings_fundi_idx on bookings ("fundiId");
@@ -476,6 +464,41 @@ create index if not exists fundiprofiles_user_uq    on fundiprofiles ("userId");
 create index if not exists bookings_client_idx      on bookings ("clientId", created_at desc);
 create index if not exists bookings_fundi_idx       on bookings ("fundiId", created_at desc);
 create index if not exists bookings_status_idx      on bookings (status, created_at desc);
+
+-- ============================================================
+-- Retire the surveyor role
+-- ============================================================
+-- Runs after every table exists so the cleanup can reach everything the
+-- account ever touched. Deleting the user would trip a foreign key on any row
+-- that points the other way (a booking it joined as client or fundi), so that
+-- history is left for a human to review — only the account's own output goes.
+do $$
+declare
+  sid text;
+begin
+  for sid in select id from users where role = 'surveyor' loop
+    delete from messages      where "senderId" = sid;
+    delete from transactions  where "userId" = sid
+                               or "walletId" in (select id from wallets where "userId" = sid);
+    delete from wallets       where "userId" = sid;
+    delete from fundiprofiles where "userId" = sid;
+    delete from reviews       where "fundiId" = sid or "customerId" = sid;
+    delete from audit_logs    where "actorId" = sid
+                               or "actorRole" = 'surveyor'
+                               or action like 'surveyor.%';
+    delete from users         where id = sid;
+  end loop;
+end $$;
+
+-- `create table if not exists` never touches the check constraint on a database
+-- that already exists, so replace it once the surveyor rows are gone.
+do $$
+begin
+  alter table users drop constraint if exists users_role_check;
+  alter table users
+    add constraint users_role_check
+    check (role in ('customer','fundi','admin'));
+end $$;
 
 -- ============================================================
 -- Row Level Security

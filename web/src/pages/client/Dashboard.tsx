@@ -26,7 +26,7 @@ export default function ClientDashboard() {
     const inProgress = bookings.filter(b => ['ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(b.status));
     const active = bookings.filter(isOpen);
     const spent = completed.reduce((sum, b) => {
-      const raw = b.agreedPrice ?? b.priceAgreed ?? b.proposedPrice;
+      const raw = b.agreedPrice ?? b.proposedPrice;
       const value = Number(raw);
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);

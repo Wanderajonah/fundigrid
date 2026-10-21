@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, MapPin, CalendarClock, Camera, Phone, MessageSquare, UserCheck, Image as ImageIcon, Calculator } from 'lucide-react';
+import { ArrowLeft, MapPin, CalendarClock, Camera, Phone, MessageSquare, HardHat, Image as ImageIcon, Coins } from 'lucide-react';
 import PageHeader from './components/PageHeader';
 import StatusBadge from './components/StatusBadge';
 import Tabs from './components/Tabs';
 import { useAdminStore } from './context/AdminStore';
-import { JOB_STATUS_META, initialsOf } from './data/meta';
+import { JOB_STATUS_META, formatUGX, initialsOf } from './data/meta';
 import { jobRef } from '../../lib/jobRef';
 
 const TABS = [
@@ -19,7 +19,7 @@ const PHOTO_TONES = ['from-amber-100 to-orange-100', 'from-sky-100 to-indigo-100
 
 export default function JobRequestDetailPage() {
   const { id } = useParams();
-  const { getJob, surveyors, loading } = useAdminStore();
+  const { getJob, loading } = useAdminStore();
   const [tab, setTab] = useState('overview');
   const job = getJob(id);
 
@@ -42,24 +42,29 @@ export default function JobRequestDetailPage() {
   }
 
   const meta = JOB_STATUS_META[job.status];
-  const surveyor = surveyors.find(s => s.id === job.surveyorId);
-  const assignedName = surveyor?.name || job.surveyorName || '';
   const photos = Array.from({ length: job.photos });
-  const estimateReady = job.status === 'Estimate Ready';
+  const hasFundi = job.fundi !== 'Unassigned';
+  const started = job.status === 'In Progress' || job.status === 'Completed';
+  const quoted = job.amount > 0;
 
   const timeline = [
     { label: 'Request submitted', done: true, when: job.date },
-    { label: 'Under review by admin', done: job.status !== 'New', when: job.status === 'New' ? 'Pending' : job.date },
-    { label: 'Surveyor assigned', done: Boolean(assignedName), when: assignedName ? job.date : 'Pending' },
-    { label: 'Estimate submitted', done: estimateReady, when: estimateReady ? job.date : 'Pending' },
+    { label: 'Fundi chosen', done: hasFundi, when: hasFundi ? job.date : 'Waiting for the client' },
+    { label: 'Fundi accepted', done: job.status !== 'New', when: job.status === 'New' ? 'Pending' : job.date },
+    { label: 'Price agreed', done: job.priceAgreed, when: job.priceAgreed ? job.date : 'Pending' },
+    { label: 'Work started', done: started, when: started ? job.date : 'Pending' },
     { label: 'Completed', done: job.status === 'Completed', when: job.status === 'Completed' ? job.date : 'Pending' },
   ];
 
   const activity = [
-    { who: 'System', what: 'Request created and queued for review', when: job.date },
-    { who: 'Admin', what: `Status set to “${job.status}”`, when: job.date },
-    ...(assignedName ? [{ who: 'Admin', what: `Assigned ${assignedName} as quantity surveyor`, when: job.date }] : []),
-    ...(estimateReady ? [{ who: 'Surveyor', what: 'Submitted the cost estimate', when: job.date }] : []),
+    { who: 'System', what: 'Request created and sent to fundis nearby', when: job.date },
+    { who: 'Admin', what: `Status set to “${meta.label}”`, when: job.date },
+    ...(hasFundi ? [{ who: job.fundi, what: 'Accepted the job', when: job.date }] : []),
+    ...(job.priceAgreed
+      ? [{ who: job.customer, what: `Agreed a price of ${formatUGX(job.amount)}`, when: job.date }]
+      : quoted
+        ? [{ who: job.fundi, what: `Quoted ${formatUGX(job.amount)} — waiting on the client`, when: job.date }]
+        : []),
     { who: job.customer, what: `Uploaded ${job.photos} photo${job.photos === 1 ? '' : 's'} to the request`, when: job.date },
   ];
 
@@ -71,18 +76,6 @@ export default function JobRequestDetailPage() {
 
       <PageHeader title={`Job Request ${jobRef(job.id)}`} subtitle={`${job.service} · ${job.location} · ${job.date}`}>
         <StatusBadge label={meta.label} cls={meta.cls} dot={meta.dot} size="md" />
-        <Link
-          to={`/admin/requests/${job.id}/assign`}
-          className="inline-flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-semibold px-5 py-3 rounded-xl text-sm transition-all"
-        >
-          <UserCheck size={16} /> {assignedName ? 'Change Surveyor' : 'Assign Quantity Surveyor'}
-        </Link>
-        <Link
-          to={`/admin/estimates/${job.id}`}
-          className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-slate-900 font-semibold px-6 py-3 rounded-xl text-sm transition-all"
-        >
-          <Calculator size={16} /> {estimateReady ? 'View Estimate' : 'Estimate'}
-        </Link>
       </PageHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -103,7 +96,7 @@ export default function JobRequestDetailPage() {
                       { icon: <MapPin size={15} />, label: 'Location', value: job.address },
                       { icon: <CalendarClock size={15} />, label: 'Scheduled', value: job.scheduledFor },
                       { icon: <Camera size={15} />, label: 'Photos', value: `${job.photos} uploaded` },
-                      { icon: <UserCheck size={15} />, label: 'Surveyor', value: assignedName || 'Not assigned yet' },
+                      { icon: <HardHat size={15} />, label: 'Fundi', value: job.fundi },
                     ].map(item => (
                       <div key={item.label} className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-line">
                         <span className="text-primary mt-0.5">{item.icon}</span>
@@ -181,39 +174,50 @@ export default function JobRequestDetailPage() {
             </div>
           </div>
 
+          {/* What the two sides settled on is the figure the platform records
+              its commission from, so it gets its own card. */}
+          <div className="bg-white rounded-2xl border border-line shadow-card p-7">
+            <div className="flex items-center gap-2 mb-5">
+              <Coins size={16} className="text-primary" />
+              <h3 className="text-sm font-bold text-slate-900">Price</h3>
+            </div>
+            {job.priceAgreed ? (
+              <>
+                <p className="text-2xl font-bold text-slate-900">{formatUGX(job.amount)}</p>
+                <p className="text-sm text-emerald-600 font-semibold mt-1">Agreed by client and fundi</p>
+              </>
+            ) : quoted ? (
+              <>
+                <p className="text-2xl font-bold text-slate-900">{formatUGX(job.amount)}</p>
+                <p className="text-sm text-amber-600 font-semibold mt-1">
+                  Quote sent — waiting for the client to accept
+                </p>
+              </>
+            ) : (
+              <div className="rounded-xl bg-slate-50 border border-dashed border-slate-200 p-5 text-center">
+                <p className="text-sm text-slate-400">No price yet. The fundi quotes after inspecting the site, and work only starts once the client agrees.</p>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-2xl border border-line shadow-card p-7">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-slate-900">Surveyor</h3>
-              {surveyor && <StatusBadge label={surveyor.available ? 'Available' : 'Busy'} cls={surveyor.available ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} />}
+              <h3 className="text-sm font-bold text-slate-900">Fundi</h3>
             </div>
-            {assignedName ? (
+            {hasFundi ? (
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-full bg-primary/15 text-primary-dark flex items-center justify-center text-sm font-bold">
-                  {initialsOf(assignedName)}
+                  {initialsOf(job.fundi)}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-slate-900">{assignedName}</p>
-                  <p className="text-sm text-slate-400">{surveyor?.specialty ?? 'Quantity Surveyor'}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {surveyor ? `★ ${surveyor.rating} · ${surveyor.jobs} jobs` : estimateReady ? 'Estimate submitted' : 'Waiting for the estimate'}
-                  </p>
+                  <p className="font-semibold text-slate-900">{job.fundi}</p>
+                  <p className="text-sm text-slate-400">{job.service}</p>
                 </div>
               </div>
             ) : (
               <div className="rounded-xl bg-slate-50 border border-dashed border-slate-200 p-5 text-center">
-                <p className="text-sm text-slate-400">No surveyor assigned yet.</p>
-                <Link to={`/admin/requests/${job.id}/assign`} className="inline-block mt-3 text-sm font-semibold text-primary hover:text-primary-dark">
-                  Assign one now
-                </Link>
+                <p className="text-sm text-slate-400">The client has not picked a fundi yet.</p>
               </div>
-            )}
-            {assignedName && (
-              <Link
-                to={`/admin/estimates/${job.id}`}
-                className="block text-center mt-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                {estimateReady ? 'View estimate' : 'Enter estimate'}
-              </Link>
             )}
           </div>
 

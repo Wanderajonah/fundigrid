@@ -5,7 +5,6 @@ const Booking = require("../models/Booking");
 const User = require("../models/User");
 const FundiProfile = require("../models/FundiProfile");
 const { buildEstimate, estimateFor } = require("../services/estimateService");
-const { surveyStage, readyForFundi, progressSteps } = require("../services/surveyService");
 const { fullName } = require("../controllers/authController");
 const { audit } = require("../services/auditService");
 
@@ -13,6 +12,45 @@ const { audit } = require("../services/auditService");
 // /fundi/accept and the last word belongs to the client — see
 // /client/confirm-completion.
 const FUNDI_STATUSES = ["ON_THE_WAY", "ARRIVED", "IN_PROGRESS", "COMPLETED"];
+
+// Every state a request passes through, oldest first.
+const FLOW_STATUSES = ["PENDING", "ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS", "COMPLETED"];
+
+/**
+ * Client-facing timeline for the direct client ↔ fundi flow:
+ * submitted → fundi chosen → accepted → price agreed → work started → done.
+ * Every step is read off the booking's own timestamps so the timeline tracks
+ * the job however it moves.
+ */
+function progressSteps(booking) {
+  const row = booking || {};
+  const idx = FLOW_STATUSES.indexOf(row.status);
+  const past = (status) => idx >= FLOW_STATUSES.indexOf(status);
+  const accepted = Boolean(row.acceptedAt) || past("ACCEPTED");
+  const started = Boolean(row.startedAt) || past("IN_PROGRESS");
+  const completed = row.status === "COMPLETED" || Boolean(row.completedAt);
+
+  const steps = [
+    { key: "submitted", label: "Request submitted", at: row.created_at || null, done: true },
+    { key: "fundi", label: "Fundi chosen", at: row.acceptedAt || null, done: Boolean(row.fundiId) },
+    { key: "accepted", label: "Fundi accepted", at: row.acceptedAt || null, done: accepted },
+    { key: "priced", label: "Price agreed", at: null, done: Boolean(row.priceAgreed) },
+    { key: "started", label: "Work started", at: row.startedAt || null, done: started },
+    {
+      key: "completed",
+      label: "Job completed",
+      at: row.completedAt || row.fundiCompletedAt || null,
+      done: completed,
+    },
+  ];
+
+  // The first unfinished step is where the request is sitting right now.
+  const current = steps.find((step) => !step.done);
+  return steps.map((step) => ({
+    ...step,
+    status: step.done ? "completed" : step === current ? "current" : "pending",
+  }));
+}
 
 function requireFundi(req, res, next) {
   if (req.user.role !== "fundi") {
@@ -28,8 +66,6 @@ router.get("/fundi/bookings", protect, requireFundi, async (req, res, next) => {
       .from("bookings")
       .select("*")
       .eq("fundiId", req.user.id)
-      // A request stays hidden until the quantity surveyor has priced it.
-      .or("surveyStatus.is.null,surveyStatus.eq.ESTIMATE_READY")
       .order("created_at", { ascending: false });
     if (error) throw error;
     res.json({ success: true, bookings: data || [] });
@@ -53,12 +89,6 @@ router.post("/fundi/accept", protect, requireFundi, async (req, res, next) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
     if (booking.status !== "PENDING") return res.status(400).json({ success: false, message: "Booking not available" });
-    if (!readyForFundi(booking)) {
-      return res.status(409).json({
-        success: false,
-        message: "The quantity surveyor is still pricing this request. You can accept it once the estimate is ready.",
-      });
-    }
     if (booking.fundiId && booking.fundiId !== req.user.id) {
       return res.status(403).json({ success: false, message: "This booking was requested from another fundi" });
     }
@@ -100,6 +130,14 @@ router.put("/fundi/status", protect, requireFundi, async (req, res, next) => {
     }
     if (["CANCELLED", "DISPUTED", "COMPLETED"].includes(booking.status)) {
       return res.status(400).json({ success: false, message: `Job is already ${booking.status}.` });
+    }
+    // Work only starts on an agreed price — that is what the platform records
+    // and takes its commission from.
+    if (status === "IN_PROGRESS" && !booking.priceAgreed) {
+      return res.status(409).json({
+        success: false,
+        message: "Send your quote and get the client's agreement before starting the job.",
+      });
     }
 
     const now = new Date().toISOString();
@@ -204,6 +242,105 @@ router.post("/client/confirm-completion", protect, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Price quote ──────────────────────────────────────────────────────────
+// The fundi prices the job once they have seen the site, the client accepts,
+// and only then may work start. The agreed figure is what payment uses and
+// what the platform records its commission from.
+
+router.post("/fundi/quote", protect, requireFundi, async (req, res, next) => {
+  try {
+    const { bookingId, amount } = req.body || {};
+    const booking = bookingId ? await Booking.findById(bookingId) : null;
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+    if (booking.fundiId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Not your booking" });
+    }
+    if (["CANCELLED", "DISPUTED", "COMPLETED"].includes(booking.status)) {
+      return res.status(400).json({ success: false, message: `Job is already ${booking.status}.` });
+    }
+
+    const price = Math.round(Number(amount));
+    if (!Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({ success: false, message: "Enter the amount to quote" });
+    }
+
+    // A fresh quote restarts the agreement: the client has to accept it again.
+    const updated = await Booking.findByIdAndUpdate(booking.id, {
+      proposedPrice: price,
+      proposedBy: "FUNDI",
+      clientPriceAgreed: false,
+      fundiPriceAgreed: false,
+      priceAgreed: false,
+      agreedPrice: null,
+    });
+    audit(req, {
+      action: "booking.quoted",
+      category: "bookings",
+      entityType: "booking",
+      entityId: booking.id,
+      summary: `Quoted ${price} for ${booking.category || "a job"}`,
+      meta: { amount: price, category: booking.category || "" },
+    });
+    res.json({ success: true, booking: updated });
+  } catch (err) { next(err); }
+});
+
+router.post("/client/price-response", protect, async (req, res, next) => {
+  try {
+    const { bookingId, action } = req.body || {};
+    const booking = bookingId ? await Booking.findById(bookingId) : null;
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+    if (booking.clientId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Not your booking" });
+    }
+    if (action !== "accept" && action !== "decline") {
+      return res.status(400).json({ success: false, message: "Action must be accept or decline" });
+    }
+    if (!(Number(booking.proposedPrice) > 0)) {
+      return res.status(400).json({ success: false, message: "There is no quote to respond to" });
+    }
+
+    if (action === "decline") {
+      const updated = await Booking.findByIdAndUpdate(booking.id, {
+        proposedPrice: null,
+        proposedBy: null,
+        clientPriceAgreed: false,
+        fundiPriceAgreed: false,
+        priceAgreed: false,
+        agreedPrice: null,
+      });
+      audit(req, {
+        action: "booking.quote_declined",
+        category: "bookings",
+        entityType: "booking",
+        entityId: booking.id,
+        summary: `Declined the quote on ${booking.category || "a job"}`,
+        meta: { amount: Number(booking.proposedPrice), category: booking.category || "" },
+      });
+      return res.json({ success: true, booking: updated });
+    }
+
+    const agreed = Math.round(Number(booking.proposedPrice));
+    // The fundi stands by their own quote, so the client's yes completes the
+    // agreement on both sides.
+    const updated = await Booking.findByIdAndUpdate(booking.id, {
+      clientPriceAgreed: true,
+      fundiPriceAgreed: true,
+      priceAgreed: true,
+      agreedPrice: agreed,
+    });
+    audit(req, {
+      action: "booking.price_agreed",
+      category: "bookings",
+      entityType: "booking",
+      entityId: booking.id,
+      summary: `Agreed ${agreed} for ${booking.category || "a job"}`,
+      meta: { amount: agreed, category: booking.category || "", proposedBy: booking.proposedBy || "FUNDI" },
+    });
+    res.json({ success: true, booking: updated });
+  } catch (err) { next(err); }
+});
+
 router.get("/client/bookings", protect, async (req, res, next) => {
   try {
     const { getSupabase } = require("../config/supabase");
@@ -263,9 +400,9 @@ router.post("/client/create", protect, async (req, res, next) => {
       location: req.body.location || { lat: 0, lng: 0 },
       images: req.body.images || [],
       estimatedDuration: req.body.estimatedDuration || 60,
-      // Rate-card figure shown as a preview until the surveyor costed it.
+      // Rate-card figure kept on the booking purely as the amount payment falls
+      // back to — the price the client actually pays is the one the fundi quotes.
       estimate: buildEstimate(category),
-      surveyStatus: "AWAITING_ASSIGNMENT",
     });
     audit(req, {
       action: "booking.created",
@@ -279,8 +416,8 @@ router.post("/client/create", protect, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// The directory only opens once the surveyor has priced the job: this is the
-// step that attaches a fundi to a request the client already submitted.
+// The client deals with the fundi directly: this is the step that attaches a
+// fundi to the request they already submitted.
 router.post("/client/select-fundi", protect, async (req, res, next) => {
   try {
     const { bookingId, fundiId } = req.body || {};
@@ -291,12 +428,6 @@ router.post("/client/select-fundi", protect, async (req, res, next) => {
     }
     if (["CANCELLED", "DISPUTED", "COMPLETED"].includes(booking.status)) {
       return res.status(400).json({ success: false, message: `Job is already ${booking.status}.` });
-    }
-    if (!readyForFundi(booking)) {
-      return res.status(409).json({
-        success: false,
-        message: "You can pick a fundi once the quantity surveyor's estimate is ready.",
-      });
     }
     if (!fundiId) return res.status(400).json({ success: false, message: "Choose a fundi first" });
 
@@ -331,8 +462,8 @@ router.post("/client/select-fundi", protect, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// What has happened to a request so far, up to the estimate. The client's
-// tracking screen polls this until the surveyor's figure lands.
+// What has happened to a request so far. The client's tracking screen polls
+// this while the request waits for a fundi, then again as the job moves.
 router.get("/progress/:id", protect, async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -342,26 +473,17 @@ router.get("/progress/:id", protect, async (req, res, next) => {
     const involved =
       booking.clientId === user.id ||
       booking.fundiId === user.id ||
-      booking.surveyorId === user.id ||
       user.role === "admin";
     if (!involved) return res.status(403).json({ success: false, message: "Not your request" });
 
     res.json({
       success: true,
       booking,
-      stage: surveyStage(booking),
-      ready: readyForFundi(booking),
-      surveyorName: booking.surveyorName || "",
-      estimate: booking.estimate || null,
+      // There is no pricing gate any more — a request reaches fundis the
+      // moment it is created.
+      ready: true,
       steps: progressSteps(booking),
     });
-  } catch (err) { next(err); }
-});
-
-// Cost preview for the confirm screen — same math the booking gets stored with.
-router.get("/estimate", protect, async (req, res, next) => {
-  try {
-    res.json({ success: true, estimate: buildEstimate(req.query.category || "") });
   } catch (err) { next(err); }
 });
 
@@ -369,8 +491,8 @@ router.get("/estimate", protect, async (req, res, next) => {
 // Only answers when COMMS_DEV_MODE=true so it never ships to production.
 // One tap = the fundi's next real action (accept → on the way → arrived →
 // in progress → completed), complete with timestamps, a quote at the job's
-// estimate and a fake travelling location so the client's map has something
-// to show.
+// estimate once the site has been seen and a fake travelling location so the
+// client's map has something to show.
 const SIMULATION_FLOW = ["ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS", "COMPLETED"];
 
 router.post("/simulate/advance", protect, async (req, res, next) => {
@@ -395,11 +517,11 @@ router.post("/simulate/advance", protect, async (req, res, next) => {
     }
 
     const nextStatus = SIMULATION_FLOW[SIMULATION_FLOW.indexOf(booking.status) + 1] || "ACCEPTED";
-    // Same gate as the real accept: no walking a request past the surveyor.
-    if (nextStatus === "ACCEPTED" && !readyForFundi(booking)) {
+    // Same gate as the real status route: no starting work on an unagreed price.
+    if (nextStatus === "IN_PROGRESS" && !booking.priceAgreed) {
       return res.status(409).json({
         success: false,
-        message: "The quantity surveyor has not submitted the estimate yet.",
+        message: "Agree a price with the client before starting the job.",
       });
     }
     const now = new Date().toISOString();
@@ -417,8 +539,9 @@ router.post("/simulate/advance", protect, async (req, res, next) => {
     if (nextStatus === "ON_THE_WAY") updates.onTheWayAt = now;
     if (nextStatus === "ARRIVED") updates.arrivedAt = now;
     if (nextStatus === "IN_PROGRESS") updates.startedAt = now;
-    // Fundi accepts at the job's estimate: payment then has a real amount.
-    if (nextStatus === "ACCEPTED" && !(Number(booking.agreedPrice) > 0) && !(Number(booking.proposedPrice) > 0)) {
+    // Arriving on site is when the fundi quotes — the demo agrees it straight
+    // away so the flow can carry on into work and payment.
+    if (nextStatus === "ARRIVED" && !booking.priceAgreed && !(Number(booking.proposedPrice) > 0)) {
       const quoted = estimateFor(booking).total;
       updates.proposedPrice = quoted;
       updates.agreedPrice = quoted;

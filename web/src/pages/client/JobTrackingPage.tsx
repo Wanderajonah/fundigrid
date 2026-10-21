@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Clock, MapPin } from 'lucide-react';
-import { confirmCompletion, getClientBookings, type Booking } from '../../lib/api';
+import { confirmCompletion, getClientBookings, respondToQuote, type Booking } from '../../lib/api';
 import { bookingTitle, statusMeta } from '../../lib/booking';
 
 function formatStamp(value?: string | null) {
@@ -21,6 +21,8 @@ export default function JobTrackingPage() {
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState('');
+  const [responding, setResponding] = useState<'accept' | 'decline' | null>(null);
+  const [quoteError, setQuoteError] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -82,6 +84,29 @@ export default function JobTrackingPage() {
   // The fundi reports the work finished; the client signs off before it is COMPLETED.
   const awaitingSignoff = booking.status === 'IN_PROGRESS' && Boolean(booking.fundiCompleted);
 
+  // The fundi prices the job after seeing the site; the client's yes is what
+  // lets work start, so an outstanding quote sits up front waiting for it.
+  const openJob = !['CANCELLED', 'DISPUTED', 'COMPLETED'].includes(booking.status);
+  const quote = Number(booking.proposedPrice) || 0;
+  const awaitingQuote = openJob && !booking.priceAgreed && quote > 0;
+  const agreed = Number(booking.agreedPrice) || 0;
+
+  async function answerQuote(action: 'accept' | 'decline') {
+    if (responding) return;
+    if (action === 'decline' && !window.confirm('Send this quote back so your fundi can price the job again?')) return;
+    setResponding(action);
+    setQuoteError('');
+    try {
+      await respondToQuote(booking!.id, action);
+      const res = await getClientBookings();
+      setBookings(res.bookings || []);
+    } catch (err) {
+      setQuoteError(err instanceof Error ? err.message : 'Could not save your answer');
+    } finally {
+      setResponding(null);
+    }
+  }
+
   async function confirmDone() {
     if (confirming) return;
     const ok = window.confirm('Confirm the job is done? This releases payment to the fundi.');
@@ -116,6 +141,35 @@ export default function JobTrackingPage() {
         </div>
       </div>
 
+      {awaitingQuote && (
+        <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-6 flex flex-wrap items-center gap-6 justify-between">
+          <div className="min-w-[220px] flex-1">
+            <p className="font-semibold text-gray-900">{booking.fundiName || 'Your fundi'} has quoted a price</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">UGX {quote.toLocaleString()}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Accept to lock the price in and let the work start — or decline and ask for a new quote.
+            </p>
+            {quoteError && <p className="text-sm text-red-500 mt-2">{quoteError}</p>}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => answerQuote('decline')}
+              disabled={responding !== null}
+              className="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-60 text-gray-700 font-semibold text-sm rounded-full transition-all"
+            >
+              {responding === 'decline' ? 'Sending…' : 'Decline'}
+            </button>
+            <button
+              onClick={() => answerQuote('accept')}
+              disabled={responding !== null}
+              className="px-6 py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white font-semibold text-sm rounded-full transition-all"
+            >
+              {responding === 'accept' ? 'Accepting…' : 'Accept price'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-5 gap-8">
         <div className="col-span-3 bg-white rounded-2xl border border-gray-100 p-8">
           <h2 className="font-bold text-gray-900 mb-6">Request details</h2>
@@ -123,6 +177,16 @@ export default function JobTrackingPage() {
             <div className="flex justify-between gap-6">
               <dt className="text-sm text-gray-400">Status</dt>
               <dd className="text-sm font-semibold text-gray-900">{meta.label}</dd>
+            </div>
+            <div className="flex justify-between gap-6">
+              <dt className="text-sm text-gray-400">Price</dt>
+              <dd className="text-sm font-semibold text-gray-900">
+                {agreed > 0
+                  ? `UGX ${agreed.toLocaleString()}`
+                  : awaitingQuote
+                    ? 'Quote awaiting your answer'
+                    : 'Not set yet'}
+              </dd>
             </div>
             <div className="flex justify-between gap-6">
               <dt className="text-sm text-gray-400">Progress</dt>

@@ -35,11 +35,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 const DashboardOverview = lazy(() => import('./pages/admin/DashboardOverview'));
 const JobRequestsPage = lazy(() => import('./pages/admin/JobRequestsPage'));
 const JobRequestDetailPage = lazy(() => import('./pages/admin/JobRequestDetailPage'));
-const AssignSurveyorPage = lazy(() => import('./pages/admin/AssignSurveyorPage'));
-const EstimatesPage = lazy(() => import('./pages/admin/EstimatesPage'));
-const EstimateDetailPage = lazy(() => import('./pages/admin/EstimateDetailPage'));
 const FundisPage = lazy(() => import('./pages/admin/FundisPage'));
-const SurveyorsPage = lazy(() => import('./pages/admin/SurveyorsPage'));
 const BookingsPage = lazy(() => import('./pages/admin/BookingsPage'));
 const AdminFundiProfilePage = lazy(() => import('./pages/admin/FundiProfilePage'));
 const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
@@ -47,9 +43,6 @@ const VerificationsPage = lazy(() => import('./pages/admin/VerificationsPage'));
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const AuditTrailPage = lazy(() => import('./pages/admin/AuditTrailPage'));
 const AdminSettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
-
-import SurveyorLayout from './pages/surveyor/SurveyorLayout';
-const AssignedRequestsPage = lazy(() => import('./pages/surveyor/AssignedRequestsPage'));
 
 function RouteFallback() {
   return (
@@ -139,27 +132,14 @@ function App() {
           <Route index element={<DashboardOverview />} />
           <Route path="requests" element={<JobRequestsPage />} />
           <Route path="requests/:id" element={<JobRequestDetailPage />} />
-          <Route path="requests/:id/assign" element={<AssignSurveyorPage />} />
-          <Route path="estimates" element={<EstimatesPage />} />
-          <Route path="estimates/:id" element={<EstimateDetailPage />} />
           <Route path="verifications" element={<VerificationsPage />} />
           <Route path="fundis" element={<FundisPage />} />
           <Route path="fundis/:id" element={<AdminFundiProfilePage />} />
-          <Route path="surveyors" element={<SurveyorsPage />} />
           <Route path="bookings" element={<BookingsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="audit" element={<AuditTrailPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
-        </Route>
-
-        <Route path="/surveyor" element={
-          <RequireAuth role="surveyor">
-            <SurveyorLayout />
-          </RequireAuth>
-        }>
-          <Route index element={<AssignedRequestsPage />} />
-          <Route path="estimate/:id" element={<EstimateDetailPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

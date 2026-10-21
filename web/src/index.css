@@ -23,7 +23,7 @@
   --color-primary: #F5A623;
   --color-primary-dark: #E08E0B;
   --color-primary-soft: #FEF1DC;
-  /* Admin + quantity surveyor chrome: cool navy surfaces, slate neutrals */
+  /* Admin console chrome: cool navy surfaces, slate neutrals */
   --color-navy-950: #0A1B33;
   --color-navy-900: #10294D;
   --color-navy-800: #173B6B;
@@ -45,7 +45,7 @@
   input:focus, textarea:focus, select:focus { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 }
 
-/* ── Admin + surveyor console: scrollbars are invisible until the pointer
+/* ── Admin console: scrollbars are invisible until the pointer
    hovers the scrolling area (sidebar, tables, panels). `scrollbar-width` /
    `scrollbar-color` inherit, so the console root sets the default and every
    descendant picks it up. */

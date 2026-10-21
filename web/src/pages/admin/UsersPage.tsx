@@ -11,14 +11,12 @@ const TABS = [
   { key: 'all', label: 'All' },
   { key: 'Client', label: 'Clients' },
   { key: 'Fundi', label: 'Fundis' },
-  { key: 'Surveyor', label: 'Surveyors' },
   { key: 'Admin', label: 'Admins' },
 ];
 
 const ROLE_CLS: Record<UserRole, string> = {
   Client: 'bg-sky-50 text-sky-600',
   Fundi: 'bg-violet-50 text-violet-600',
-  Surveyor: 'bg-amber-50 text-amber-600',
   Admin: 'bg-slate-100 text-slate-600',
 };
 
@@ -41,7 +39,7 @@ export default function UsersPage() {
 
   return (
     <div className="max-w-[1360px] mx-auto">
-      <PageHeader title="Users" subtitle="Manage clients, fundis and surveyors on the platform">
+      <PageHeader title="Users" subtitle="Manage clients, fundis and admins on the platform">
         <button
           onClick={() => setAdding(true)}
           className="inline-flex items-center gap-2 bg-navy-900 hover:bg-navy-800 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-all"

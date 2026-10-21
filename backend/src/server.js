@@ -20,7 +20,6 @@ const authRoutes = require("./routes/authRoutes");
 const googleAuthRoutes = require("./routes/googleAuthRoutes");
 const userRoutes = require("./routes/userRoutes");
 const fundiRoutes = require("./routes/fundiRoutes");
-const jobRoutes = require("./routes/jobRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const mapsRoutes = require("./routes/mapsRoutes");
@@ -29,7 +28,6 @@ const chatRoutes = require("./routes/chatRoutes");
 const walletRoutes = require("./routes/walletRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const surveyorRoutes = require("./routes/surveyorRoutes");
 const { streamGridFsFile, ensureStorageBuckets } = require("./services/gridfsStorage");
 
 const app = express();
@@ -121,7 +119,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/auth", googleAuthRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/fundis", fundiRoutes);
-app.use("/api/jobs", jobRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/maps", mapsRoutes);
@@ -130,7 +127,6 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/surveyor", surveyorRoutes);
 
 app.use(errorHandler);
 

@@ -1,11 +1,9 @@
 // Client-side state for the admin dashboard: every list on it (requests,
-// estimates, surveyors, fundis, users, bookings) is read from and written to
-// the backend.
+// fundis, users, bookings) is read from and written to the backend.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ApiError,
-  assignAdminSurveyor,
   createAdminUser,
   deleteAdminUser,
   getAdminBookings,
@@ -13,32 +11,25 @@ import {
   getAdminFundis,
   getAdminRequests,
   getAdminStats,
-  getAdminSurveyors,
   getAdminUsers,
-  submitAdminEstimate,
   updateAdminFundi,
   updateAdminUser,
   reviewAdminVerification,
   type AdminBooking,
   type AdminFundi,
   type AdminRequest,
-  type AdminSurveyor,
   type AdminStats,
   type AdminUser,
   type AdminVerification,
   type CreateUserInput,
-  type EstimateInput,
-  type SurveyStage,
 } from '../../../lib/api';
 import type {
   BookingRecord,
-  Estimate,
   Fundi,
   FundiStatus,
   JobRequest,
   JobStatus,
   PlatformUser,
-  Surveyor,
 } from '../data/meta';
 
 function formatDate(value?: string | null): string {
@@ -53,20 +44,25 @@ function shortLabel(text?: string | null): string {
   return value ? value.split(',')[0].trim() : '—';
 }
 
-// NULL surveyStatus means the booking predates the surveyor stage; the backend
-// reads those as "estimate already ready", so the dashboard has to agree.
-function stageToStatus(stage?: SurveyStage | null): JobStatus {
-  if (stage === 'SURVEYOR_ASSIGNED') return 'Surveyor Assigned';
-  if (stage === 'ESTIMATE_READY' || stage == null) return 'Estimate Ready';
-  if (stage === 'AWAITING_ASSIGNMENT') return 'New';
+function money(value?: number | null): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+// The request's status is the booking's own status — there is no separate
+// pricing stage sitting in front of it any more.
+function statusToJob(status?: string): JobStatus {
+  if (status === 'COMPLETED') return 'Completed';
+  if (status === 'CANCELLED' || status === 'DISPUTED') return 'Cancelled';
+  if (status === 'ACCEPTED') return 'Accepted';
+  if (status === 'ON_THE_WAY' || status === 'ARRIVED' || status === 'IN_PROGRESS') return 'In Progress';
   return 'New';
 }
 
-function isAssignedOrReady(stage?: SurveyStage | null): boolean {
-  return stage === 'SURVEYOR_ASSIGNED' || stage === 'ESTIMATE_READY' || stage == null;
-}
-
 function toJob(row: AdminRequest): JobRequest {
+  // What the job is worth to the platform: the agreed price if there is one,
+  // otherwise the fundi's outstanding quote.
+  const amount = money(row.agreedPrice) || money(row.proposedPrice);
   return {
     id: row.id,
     service: row.category || 'Service',
@@ -74,50 +70,16 @@ function toJob(row: AdminRequest): JobRequest {
     customer: row.clientName || 'Client',
     customerPhone: row.clientPhone || '',
     date: formatDate(row.created_at),
-    status: stageToStatus(row.surveyStatus),
+    status: statusToJob(row.status),
     description: row.description || '',
     address: row.address || '',
     scheduledFor: row.scheduledFor ? formatDate(row.scheduledFor) : 'Not scheduled',
     photos: Array.isArray(row.images) ? row.images.length : 0,
-    surveyorId: row.surveyorId || undefined,
-    surveyorName: row.surveyorName || undefined,
-  };
-}
-
-function toEstimate(row: AdminRequest): Estimate {
-  const ready = isAssignedOrReady(row.surveyStatus) && row.surveyStatus !== 'SURVEYOR_ASSIGNED';
-  const est = row.estimate;
-  return {
-    // The request id doubles as the estimate id so the detail page can read
-    // straight from the same booking record.
-    id: row.id,
-    jobId: row.id,
-    service: row.category || 'Service',
-    customer: row.clientName || 'Client',
-    surveyor: row.surveyorName || 'Unassigned',
-    surveyorId: row.surveyorId || '',
-    amount: Number(est?.total) || 0,
-    status: ready ? 'Ready' : 'Pending',
-    submittedOn: ready ? formatDate(row.estimateSubmittedAt) : 'Not submitted',
-    breakdown: [
-      { label: 'Labour', amount: Number(est?.labour) || 0 },
-      { label: 'Materials', amount: Number(est?.materials) || 0 },
-      { label: 'Service fee', amount: Number(est?.serviceFee) || 0 },
-    ],
-    notes: est?.notes ? [String(est.notes)] : [],
-  };
-}
-
-function toSurveyor(row: AdminSurveyor, requests: JobRequest[]): Surveyor {
-  const name = `${row.firstName || ''} ${row.lastName || ''}`.trim() || 'Quantity Surveyor';
-  return {
-    id: row.id,
-    name,
-    specialty: 'Quantity Surveyor',
-    location: row.district || shortLabel(row.locationLabel) || 'Uganda',
-    rating: 0,
-    jobs: requests.filter(r => r.surveyorId === row.id).length,
-    available: row.status !== 'inactive',
+    fundi: row.fundiName || 'Unassigned',
+    amount,
+    priceAgreed: Boolean(row.priceAgreed),
+    proposedPrice: money(row.proposedPrice),
+    proposedBy: row.proposedBy || '',
   };
 }
 
@@ -163,25 +125,21 @@ function toBooking(row: AdminBooking): BookingRecord {
     date: formatDate(row.createdAt),
     amount: Number(row.amount) || 0,
     status: row.status,
+    priceAgreed: Boolean(row.priceAgreed),
   };
 }
 
 interface AdminStoreValue {
   jobs: JobRequest[];
-  estimates: Estimate[];
   fundis: Fundi[];
-  surveyors: Surveyor[];
   users: PlatformUser[];
   bookings: BookingRecord[];
   stats: AdminStats | null;
   loading: boolean;
   error: string;
   getJob: (id?: string) => JobRequest | undefined;
-  getEstimate: (id?: string) => Estimate | undefined;
   getFundi: (id?: string) => Fundi | undefined;
   reload: () => Promise<void>;
-  assignSurveyor: (jobId: string, surveyorId: string) => Promise<void>;
-  submitEstimate: (jobId: string, input: EstimateInput) => Promise<void>;
   createUser: (input: CreateUserInput) => Promise<void>;
   setUserStatus: (userId: string, status: 'Active' | 'Inactive') => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -197,8 +155,6 @@ const AdminStoreContext = createContext<AdminStoreValue | null>(null);
 
 export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<JobRequest[]>([]);
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
-  const [surveyors, setSurveyors] = useState<Surveyor[]>([]);
   const [fundis, setFundis] = useState<Fundi[]>([]);
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
@@ -207,31 +163,11 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Surveyor cards count jobs from the requests list; keep the latest mapping
-  // in a ref so the surveyor loader can run on its own.
-  const jobsRef = useRef<JobRequest[]>([]);
-
-  const applyRequestRows = useCallback((rows: AdminRequest[]) => {
-    const mappedJobs = rows.map(toJob);
-    jobsRef.current = mappedJobs;
-    setJobs(mappedJobs);
-    setEstimates(
-      rows
-        .filter(r => isAssignedOrReady(r.surveyStatus) && r.surveyStatus !== 'AWAITING_ASSIGNMENT')
-        .map(toEstimate),
-    );
-  }, []);
-
   // Per-domain loaders: a mutation refetches only what it touched instead of
-  // re-firing all seven endpoints (each costs a full auth + query round-trip).
+  // re-firing every endpoint (each costs a full auth + query round-trip).
   const loadRequests = useCallback(async () => {
     const res = await getAdminRequests();
-    applyRequestRows(res.requests || []);
-  }, [applyRequestRows]);
-
-  const loadSurveyors = useCallback(async () => {
-    const res = await getAdminSurveyors();
-    setSurveyors((res.surveyors || []).map(s => toSurveyor(s, jobsRef.current)));
+    setJobs((res.requests || []).map(toJob));
   }, []);
 
   const loadFundis = useCallback(async () => {
@@ -264,7 +200,6 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
     try {
       await Promise.all([
         loadRequests(),
-        loadSurveyors(),
         loadFundis(),
         loadUsers(),
         loadBookings(),
@@ -278,14 +213,13 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [loadRequests, loadSurveyors, loadFundis, loadUsers, loadBookings, loadStats, loadVerifications]);
+  }, [loadRequests, loadFundis, loadUsers, loadBookings, loadStats, loadVerifications]);
 
   useEffect(() => {
     reload();
   }, [reload]);
 
   const getJob = useCallback((id?: string) => jobs.find(j => j.id === id), [jobs]);
-  const getEstimate = useCallback((id?: string) => estimates.find(e => e.id === id), [estimates]);
   const getFundi = useCallback((id?: string) => fundis.find(f => f.id === id), [fundis]);
 
   // Mutations surface their failures on the store so a page that fires and
@@ -302,14 +236,6 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
       throw e;
     }
   }, []);
-
-  const assignSurveyor = useCallback(async (jobId: string, surveyorId: string) => {
-    await run(() => assignAdminSurveyor(jobId, surveyorId), [loadRequests, loadSurveyors, loadStats]);
-  }, [run, loadRequests, loadSurveyors, loadStats]);
-
-  const submitEstimate = useCallback(async (jobId: string, input: EstimateInput) => {
-    await run(() => submitAdminEstimate(jobId, input), [loadRequests, loadStats]);
-  }, [run, loadRequests, loadStats]);
 
   const createUser = useCallback(async (input: CreateUserInput) => {
     await run(() => createAdminUser(input), [loadUsers, loadStats]);
@@ -350,20 +276,15 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       jobs,
-      estimates,
       fundis,
-      surveyors,
       users,
       bookings,
       stats,
       loading,
       error,
       getJob,
-      getEstimate,
       getFundi,
       reload,
-      assignSurveyor,
-      submitEstimate,
       createUser,
       setUserStatus,
       deleteUser,
@@ -372,8 +293,8 @@ export function AdminStoreProvider({ children }: { children: ReactNode }) {
       reviewVerification,
     }),
     [
-      jobs, estimates, fundis, surveyors, users, bookings, stats, loading, error,
-      getJob, getEstimate, getFundi, reload, assignSurveyor, submitEstimate,
+      jobs, fundis, users, bookings, stats, loading, error,
+      getJob, getFundi, reload,
       createUser, setUserStatus, deleteUser, setFundiStatus, verifications,
       reviewVerification,
     ],

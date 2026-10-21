@@ -14,7 +14,6 @@ interface Props {
 const ROLE_OPTIONS: { value: RawRole; label: string }[] = [
   { value: 'customer', label: 'Client' },
   { value: 'fundi', label: 'Fundi' },
-  { value: 'surveyor', label: 'Surveyor' },
   { value: 'admin', label: 'Admin' },
 ];
 

@@ -16,20 +16,8 @@ const POLL_MS = 8000;
 
 type Step = { key: string; label: string; at: string | null; done: boolean; status: 'completed' | 'current' | 'pending' };
 
-const STAGE_COPY: Record<string, { title: string; sub: (name: string) => string }> = {
-  AWAITING_ASSIGNMENT: {
-    title: 'Request received',
-    sub: () => 'An admin is assigning a quantity surveyor to price your job.',
-  },
-  SURVEYOR_ASSIGNED: {
-    title: 'Surveyor assigned',
-    sub: (name) => `${name || 'Your surveyor'} is measuring the job and preparing your estimate.`,
-  },
-  ESTIMATE_READY: {
-    title: 'Estimate ready',
-    sub: () => 'Your request is with fundis nearby. We will tell you the moment one accepts.',
-  },
-};
+// Statuses that mean a fundi is actually on the job.
+const ACTIVE_STATUSES = ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'];
 
 function stamp(value?: string | null): string {
   if (!value) return '';
@@ -77,45 +65,61 @@ export default function RequestStatusScreen() {
     load();
   }, [load]);
 
-  // Keep watching until the surveyor's figure lands, then stop polling.
-  const ready = data?.ready === true;
+  // Keep watching while the request still waits on a fundi, so the screen
+  // flips the moment one accepts. After that the job has its own screen.
+  const booking = data?.booking ?? null;
+  const status: string = booking?.status || 'PENDING';
+  const closed = status === 'CANCELLED' || status === 'DISPUTED';
+  const pickedFundi: string = booking?.fundiName || '';
+  const active = ACTIVE_STATUSES.includes(status);
+  const waiting = !active && !closed;
+
   useEffect(() => {
-    if (ready || loading) return;
+    if (!waiting || loading) return;
     const id = setInterval(load, POLL_MS);
     return () => clearInterval(id);
-  }, [ready, loading, load]);
+  }, [waiting, loading, load]);
 
-  const booking = data?.booking ?? null;
-  const stage: string = data?.stage || 'AWAITING_ASSIGNMENT';
-  const surveyorName: string = data?.surveyorName || '';
-  const estimate = data?.estimate ?? null;
-  const copy = STAGE_COPY[stage] || STAGE_COPY.AWAITING_ASSIGNMENT;
+  const priceAgreed = Boolean(booking?.priceAgreed) && Number(booking?.agreedPrice) > 0;
+  const quote = Number(booking?.proposedPrice) || 0;
+  const quotePending = !priceAgreed && quote > 0;
 
-  // Once the client has chosen someone the screen is really about waiting
-  // for that fundi to accept, not about the surveyor any more.
-  const pickedFundi: string = booking?.fundiName || '';
-  const waitingOnFundi = ready && !!pickedFundi;
-  const stageTitle = waitingOnFundi ? 'Fundi selected' : copy.title;
-  const stageSub = waitingOnFundi
-    ? `Waiting for ${pickedFundi} to accept your request.`
-    : copy.sub(surveyorName);
+  // What the screen is about right now: finding a fundi, waiting for one to
+  // accept, or watching the job run.
+  const stageTitle = closed
+    ? 'Request closed'
+    : active
+      ? 'Fundi on the job'
+      : pickedFundi
+        ? 'Fundi selected'
+        : 'Request received';
+  const stageSub = closed
+    ? 'This request was cancelled. You can post a new one any time.'
+    : active
+      ? `${pickedFundi || 'Your fundi'} is handling this job. Track it from My Requests.`
+      : pickedFundi
+        ? `Waiting for ${pickedFundi} to accept your request.`
+        : 'Your request is with fundis nearby. Pick one and they will confirm the job.';
 
   const steps = ((data?.steps as Step[]) || []).map((step) => {
     let hint = '';
     if (step.key === 'submitted') hint = stamp(step.at);
-    else if (step.key === 'review') hint = step.done ? `Completed${step.at ? ` ${stamp(step.at)}` : ''}` : 'Waiting for an admin to assign a surveyor';
-    else if (step.key === 'survey') {
+    else if (step.key === 'fundi') hint = step.done ? pickedFundi || 'Chosen' : 'Pick a fundi below';
+    else if (step.key === 'accepted')
+      hint = step.done ? 'Confirmed' : pickedFundi ? `Waiting for ${pickedFundi}` : 'Waiting for a fundi';
+    else if (step.key === 'priced')
       hint = step.done
-        ? `${surveyorName || 'The surveyor'} measured the job`
-        : surveyorName
-          ? `${surveyorName} is measuring the job`
-          : 'Waiting for a surveyor';
-    } else if (step.key === 'estimate') hint = step.done ? money(estimate?.total) : 'Pending';
+        ? money(booking?.agreedPrice)
+        : active
+          ? 'Waiting for the fundi to quote'
+          : 'The fundi quotes after seeing the site';
+    else if (step.key === 'started') hint = step.done ? 'Work in progress' : 'Starts once the price is agreed';
+    else if (step.key === 'completed') hint = step.done ? 'Done' : 'When the work is finished';
     return { label: step.label, status: step.status, hint };
   });
 
-  // The directory stays closed until the estimate lands, so this is the only
-  // place a client walks from the tracking screen into picking a fundi.
+  // The request is live from the moment it is posted, so this is where the
+  // client walks straight into picking a fundi.
   const findFundi = () => {
     const area = String(booking?.address || '').split(',')[0].trim();
     router.push({
@@ -127,6 +131,8 @@ export default function RequestStatusScreen() {
       },
     });
   };
+
+  const trackJob = () => router.push({ pathname: '/job-tracking', params: { bookingId } });
 
   if (loading) {
     return (
@@ -174,20 +180,20 @@ export default function RequestStatusScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={[styles.stageCard, ready && styles.stageCardReady]}>
-          <View style={[styles.stageIcon, ready && styles.stageIconReady]}>
+        <View style={[styles.stageCard, active && styles.stageCardReady]}>
+          <View style={[styles.stageIcon, active && styles.stageIconReady]}>
             <Ionicons
               name={
-                waitingOnFundi
-                  ? 'person-outline'
-                  : ready
-                    ? 'checkmark-circle'
-                    : stage === 'SURVEYOR_ASSIGNED'
-                      ? 'calculator-outline'
+                active
+                  ? 'checkmark-circle'
+                  : closed
+                    ? 'close-circle-outline'
+                    : pickedFundi
+                      ? 'person-outline'
                       : 'hourglass-outline'
               }
               size={26}
-              color={ready ? colors.white : colors.primaryDark}
+              color={active ? colors.white : colors.primaryDark}
             />
           </View>
           <View style={styles.stageCopy}>
@@ -202,38 +208,33 @@ export default function RequestStatusScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Estimate</Text>
-          {ready && estimate ? (
+          <Text style={styles.cardTitle}>Price</Text>
+          {priceAgreed ? (
             <>
               <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>Labour</Text>
-                <Text style={styles.amountValue}>{money(estimate.labour, estimate.currency)}</Text>
-              </View>
-              <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>Materials</Text>
-                <Text style={styles.amountValue}>{money(estimate.materials, estimate.currency)}</Text>
-              </View>
-              <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>Service fee</Text>
-                <Text style={styles.amountValue}>{money(estimate.serviceFee, estimate.currency)}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.amountRow}>
-                <Text style={styles.totalLabel}>Total estimate</Text>
-                <Text style={styles.totalValue}>{money(estimate.total, estimate.currency)}</Text>
+                <Text style={styles.totalLabel}>Agreed price</Text>
+                <Text style={styles.totalValue}>{money(booking?.agreedPrice)}</Text>
               </View>
               <Text style={styles.note}>
-                {estimate.source === 'surveyor'
-                  ? `Prepared by ${surveyorName || 'your quantity surveyor'}. You can still agree a different amount with your fundi on site — you pay after the work is done.`
-                  : 'Indicative price for this job while the surveyor prepares the final figure. You pay after the work is done.'}
+                You and your fundi settled on this amount. You pay after the work is done.
               </Text>
-              {estimate.notes ? <Text style={styles.notes}>“{estimate.notes}”</Text> : null}
+            </>
+          ) : quotePending ? (
+            <>
+              <View style={styles.amountRow}>
+                <Text style={styles.totalLabel}>Quote from {pickedFundi || 'your fundi'}</Text>
+                <Text style={styles.totalValue}>{money(quote)}</Text>
+              </View>
+              <Text style={styles.note}>
+                Accept it from the job screen to lock the price in — the work starts once you do.
+              </Text>
             </>
           ) : (
             <View style={styles.waiting}>
-              <Ionicons name="time-outline" size={22} color={colors.muted} />
+              <Ionicons name="pricetag-outline" size={22} color={colors.muted} />
               <Text style={styles.waitingText}>
-                Your quantity surveyor is still costing this job. The figure appears here as soon as it is ready.
+                Your fundi quotes after seeing the site. You agree the price before any work starts, and you
+                pay once the job is done.
               </Text>
             </View>
           )}
@@ -256,7 +257,7 @@ export default function RequestStatusScreen() {
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Status</Text>
             <Text style={styles.detailValue}>
-              {pickedFundi ? 'Waiting for fundi' : ready ? 'Looking for a fundi' : 'With the surveyor'}
+              {closed ? 'Cancelled' : active ? 'Under way' : pickedFundi ? 'Waiting for fundi' : 'Looking for a fundi'}
             </Text>
           </View>
           {pickedFundi ? (
@@ -269,7 +270,9 @@ export default function RequestStatusScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        {ready && !pickedFundi ? (
+        {active ? (
+          <PrimaryButton title="Track Job" onPress={trackJob} />
+        ) : !closed && !pickedFundi ? (
           <PrimaryButton title="Find a Fundi" onPress={findFundi} />
         ) : (
           <PrimaryButton title="View My Requests" onPress={() => router.push('/(tabs)/jobs')} />
@@ -337,13 +340,9 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginBottom: spacing.xs },
 
   amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 },
-  amountLabel: { fontFamily: fonts.regular, fontSize: 13.5, color: colors.inkSoft },
-  amountValue: { fontFamily: fonts.medium, fontSize: 13.5, color: colors.ink },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
   totalLabel: { fontFamily: fonts.semibold, fontSize: 14.5, color: colors.ink },
   totalValue: { fontFamily: fonts.bold, fontSize: 17, color: colors.primaryDark, letterSpacing: -0.3 },
   note: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.muted, marginTop: spacing.sm },
-  notes: { fontFamily: fonts.medium, fontSize: 12.5, lineHeight: 18, color: colors.inkSoft, marginTop: spacing.xs },
 
   waiting: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   waitingText: { fontFamily: fonts.regular, fontSize: 12.5, lineHeight: 18, color: colors.muted, textAlign: 'center' },

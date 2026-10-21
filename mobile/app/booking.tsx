@@ -9,7 +9,7 @@ import SelectField from '../src/components/SelectField';
 import { IMAGES } from '../src/assets';
 import { colors, fonts, radius, spacing } from '../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { createBooking, getJobEstimate, getRequestProgress, selectFundi } from '../src/services/api';
+import { createBooking, getRequestProgress, selectFundi } from '../src/services/api';
 import { useAuth } from '../src/contexts/AuthContext';
 import { getCurrentLocation } from '../src/services/location';
 import { clearRequestDraft, getRequestDraft } from '../src/services/requestDraft';
@@ -71,8 +71,8 @@ export default function BookingScreen() {
   const fundiName = params.name ? String(params.name) : 'Your fundi';
   const trade = params.trade ? String(params.trade) : 'Service';
   const rating = Number(params.rating ?? 0);
-  // Present when the request already went through the surveyor and we are
-  // only attaching this fundi to it.
+  // Present when the client already submitted a request and is only
+  // attaching this fundi to it.
   const existing = params.bookingId ? String(params.bookingId) : '';
 
   const [date, setDate] = useState(draft.date);
@@ -82,23 +82,16 @@ export default function BookingScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const category = draft.service || trade.split(',')[0].trim();
-  const [estimate, setEstimate] = useState<{
-    labour: number;
-    materials: number;
-    serviceFee: number;
-    total: number;
-  } | null>(null);
   const [fromRequest, setFromRequest] = useState<any>(null);
 
   useEffect(() => {
     if (!token || !existing) return;
     let alive = true;
-    // The surveyor's figure replaces the rate-card preview, and the request
-    // itself carries the details if the draft has already been cleared.
+    // The request itself carries the details if the draft has already been
+    // cleared — no price lives here, the fundi quotes that later.
     getRequestProgress(token, existing)
       .then((res) => {
         if (!alive) return;
-        if (res?.estimate) setEstimate(res.estimate);
         if (res?.booking) setFromRequest(res.booking);
       })
       .catch(() => {});
@@ -106,19 +99,6 @@ export default function BookingScreen() {
       alive = false;
     };
   }, [token, existing]);
-
-  useEffect(() => {
-    if (!token || existing) return;
-    let alive = true;
-    getJobEstimate(token, category)
-      .then((res) => {
-        if (alive && res?.estimate) setEstimate(res.estimate);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [token, category, existing]);
 
   // Fill any blank field from the stored request, without overwriting
   // something the client has just typed.
@@ -160,8 +140,8 @@ export default function BookingScreen() {
       let bookingId = existing;
 
       if (existing) {
-        // The request already exists and has been priced — this only attaches
-        // the fundi the client just picked.
+        // The request already exists — this only attaches the fundi the
+        // client just picked.
         await selectFundi(token, existing, fundiId, {
           description: description.trim(),
           address: address.trim(),
@@ -194,7 +174,6 @@ export default function BookingScreen() {
           category: fromRequest?.category || category,
           date,
           time,
-          estimate: estimate ? String(estimate.total) : '',
         },
       });
     } catch (e: any) {
@@ -262,36 +241,13 @@ export default function BookingScreen() {
           </View>
         )}
 
-        {estimate ? (
-          <View style={styles.estimateCard}>
-            <View style={styles.estimateHead}>
-              <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
-              <Text style={styles.paymentTitle}>Cost Estimate</Text>
-            </View>
-            <View style={styles.estimateRow}>
-              <Text style={styles.estimateLabel}>Labour</Text>
-              <Text style={styles.estimateValue}>UGX {estimate.labour.toLocaleString()}</Text>
-            </View>
-            <View style={styles.estimateRow}>
-              <Text style={styles.estimateLabel}>Materials</Text>
-              <Text style={styles.estimateValue}>UGX {estimate.materials.toLocaleString()}</Text>
-            </View>
-            <View style={styles.estimateRow}>
-              <Text style={styles.estimateLabel}>Service fee</Text>
-              <Text style={styles.estimateValue}>UGX {estimate.serviceFee.toLocaleString()}</Text>
-            </View>
-            <View style={styles.estimateDivider} />
-            <View style={styles.estimateRow}>
-              <Text style={styles.estimateTotalLabel}>Total estimate</Text>
-              <Text style={styles.estimateTotal}>UGX {estimate.total.toLocaleString()}</Text>
-            </View>
-            <Text style={styles.estimateNote}>
-              {(estimate as any)?.source === 'surveyor'
-                ? 'Prepared by your quantity surveyor. You can agree a different amount with your fundi on site — you pay after the work is done.'
-                : 'Indicative price for this job — you can agree a different amount with your fundi on site. You pay after the work is done.'}
-            </Text>
-          </View>
-        ) : null}
+        <View style={styles.paymentCard}>
+          <Text style={styles.paymentTitle}>How pricing works</Text>
+          <Text style={styles.paymentNote}>
+            Your fundi quotes the price after seeing the site. You accept it before any work starts, and you
+            pay once the job is done.
+          </Text>
+        </View>
 
         <View style={styles.paymentCard}>
           <Text style={styles.paymentTitle}>Payment Method</Text>
@@ -327,22 +283,6 @@ const styles = StyleSheet.create({
   photoLabel: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
   photoRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
   photoThumb: { width: 64, height: 64, borderRadius: radius.sm, backgroundColor: colors.lightBg },
-  estimateCard: {
-    backgroundColor: colors.primaryFaint,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    padding: spacing.xl,
-    gap: spacing.sm,
-  },
-  estimateHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  estimateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  estimateLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkSoft },
-  estimateValue: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
-  estimateDivider: { height: 1, backgroundColor: colors.primary, opacity: 0.25, marginVertical: 2 },
-  estimateTotalLabel: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
-  estimateTotal: { fontFamily: fonts.bold, fontSize: 16, color: colors.primary },
-  estimateNote: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkSoft, lineHeight: 18 },
   paymentCard: {
     backgroundColor: colors.lightBg,
     borderRadius: 12,

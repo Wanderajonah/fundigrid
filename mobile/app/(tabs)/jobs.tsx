@@ -94,8 +94,8 @@ export default function JobsScreen() {
                 status={statusKey(b.status)}
                 onPress={() =>
                   router.push({
-                    // A request that no fundi has taken yet is still with the
-                    // quantity surveyor, so it gets the pre-acceptance tracker.
+                    // A request no fundi has taken yet is still waiting for
+                    // acceptance, so it gets the pre-acceptance tracker.
                     pathname: b.status === 'PENDING' ? '/request-status' : '/job-tracking',
                     params: { bookingId: String(b.id) },
                   })
