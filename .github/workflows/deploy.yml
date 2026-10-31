@@ -16,6 +16,12 @@ jobs:
       run:
         # The Vite app lives in web/ — every step runs with that cwd.
         working-directory: web
+    env:
+      # The token has access to more than one team, so the scope must be
+      # explicit — the CLI refuses to guess when it has no terminal.
+      VERCEL_SCOPE: wandera-jonahs-projects
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -33,17 +39,17 @@ jobs:
       # Link explicitly so deploys always target the fundigrid project,
       # regardless of the local .vercel folder or auto-link behavior.
       - name: Link to Vercel project
-        run: vercel link --yes --project fundigrid --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel link --yes --project fundigrid --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Project Artifacts
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }}
         env:
           # The browser must reach the API directly — Vite's /api proxy only
           # exists in dev. Mirrors eas.json's production API URL.
           VITE_API_URL: https://fundigrid.onrender.com/api
 
       - name: Deploy Project Artifacts to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }}
