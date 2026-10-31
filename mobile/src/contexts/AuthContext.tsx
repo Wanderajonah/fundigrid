@@ -1,4 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
 import * as api from '../services/api';
 import { disconnectSocket } from '../services/socket';
 
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [passwordWeak, setPasswordWeak] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
+  const unauthorizedHandled = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -77,13 +80,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (t && u) {
         setToken(t);
         setUser(u);
+        unauthorizedHandled.current = false;
       }
       setLoading(false);
     })();
   }, []);
 
+  // A rejected token means the session is over (expired, revoked, or the
+  // backend secret changed). Drop local state and send the user to sign-in
+  // once, rather than letting every action alert "Not authorized".
+  useEffect(() => {
+    api.setUnauthorizedHandler(() => {
+      if (unauthorizedHandled.current) return;
+      unauthorizedHandled.current = true;
+      disconnectSocket();
+      setToken(null);
+      setUser(null);
+      setPasswordWeak(false);
+      setHasPassword(false);
+      Alert.alert('Session expired', 'Please sign in again to continue.');
+      router.replace('/role');
+    });
+    return () => api.setUnauthorizedHandler(null);
+  }, []);
+
   const signIn = async (phone: string, password: string) => {
     const data = await api.loginWithPassword({ phone, password });
+    unauthorizedHandled.current = false;
     setToken(data.token);
     setUser(data.user);
     setPasswordWeak(Boolean(data.passwordWeak));
@@ -100,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password?: string;
   }) => {
     const data = await api.verifyOtpRegister(input);
+    unauthorizedHandled.current = false;
     setToken(data.token);
     setUser(data.user);
     setPasswordWeak(Boolean(data.passwordWeak));
@@ -113,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const applySession = (session: { token: string; user: User; passwordWeak?: boolean; hasPassword?: boolean }) => {
+    unauthorizedHandled.current = false;
     setToken(session.token);
     setUser(session.user);
     setPasswordWeak(Boolean(session.passwordWeak));

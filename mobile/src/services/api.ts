@@ -12,6 +12,15 @@ type RequestOptions = {
 const WAKE_TIMEOUT_MS = 45_000;
 const REQUEST_TIMEOUT_MS = 20_000;
 
+// Registered by AuthProvider. Fired once when an authenticated request is
+// rejected, so a stale/expired token drops the user back to sign-in instead
+// of leaving every action showing a bare "Not authorized" alert.
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -81,6 +90,12 @@ async function request<T = any>(path: string, options: RequestOptions = {}): Pro
       }
 
       if (!res.ok) {
+        // Only authenticated requests count as a lost session — a 401 from
+        // the login screen is just a wrong password.
+        if (res.status === 401 && token) {
+          await AsyncStorage.multiRemove(['token', 'user']).catch(() => {});
+          unauthorizedHandler?.();
+        }
         throw apiError(data.message || data.error || 'Request failed', {
           code: data.code,
           status: res.status,

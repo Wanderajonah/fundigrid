@@ -23,25 +23,38 @@ async function findUserCached(id) {
 }
 
 const protect = async (req, res, next) => {
-  try {
-    let token;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.split(" ")[1];
-    }
-    if (!token) {
-      return res.status(401).json({ success: false, message: "Not authorized, no token" });
-    }
+  let token;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  }
+  if (!token) {
+    return res.status(401).json({ success: false, code: "NO_TOKEN", message: "Not authorized, no token" });
+  }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    const expired = error && error.name === "TokenExpiredError";
+    return res.status(401).json({
+      success: false,
+      code: expired ? "TOKEN_EXPIRED" : "INVALID_TOKEN",
+      message: expired ? "Your session has expired. Please sign in again." : "Not authorized",
+    });
+  }
+
+  try {
     const user = await findUserCached(decoded.id);
     if (!user) {
-      return res.status(401).json({ success: false, message: "User not found" });
+      return res.status(401).json({ success: false, code: "USER_NOT_FOUND", message: "User not found" });
     }
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: "Not authorized" });
+    // A database hiccup is not an auth failure — let the error handler return
+    // a 500 instead of telling the user their session is invalid.
+    next(error);
   }
 };
 

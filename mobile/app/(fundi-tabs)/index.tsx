@@ -97,6 +97,8 @@ export default function FundiDashboard() {
       await updateProfile(token, { isOnline: next });
     } catch (e: any) {
       setProfile(previous);
+      // A 401 is handled globally (session expiry); don't stack a second alert.
+      if (e?.status === 401) return;
       Alert.alert('Could not update', e.message || 'Please try again.');
     }
   };
