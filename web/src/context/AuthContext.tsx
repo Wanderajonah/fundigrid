@@ -11,6 +11,7 @@ import {
   ApiError,
   getCachedUser,
   getProfile,
+  getToken,
   login,
   sendOtp,
   setCachedUser,
@@ -29,7 +30,11 @@ interface AuthContextValue {
   hasPassword: boolean;
   requestOtp: (phone: string, purpose: 'register' | 'reset') => Promise<{ code?: string }>;
   /** Resolves with the flag so the caller can prompt without a re-render. */
-  signIn: (email: string, password: string) => Promise<{ user: SessionUser; passwordWeak: boolean }>;
+  signIn: (
+    email: string,
+    password: string,
+    remember?: boolean,
+  ) => Promise<{ user: SessionUser; passwordWeak: boolean }>;
   signUp: (input: {
     phone: string;
     code: string;
@@ -44,9 +49,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function persist(token: string, user: SessionUser) {
-  setToken(token);
-  setCachedUser(user);
+function persist(token: string, user: SessionUser, remember: boolean) {
+  setToken(token, remember);
+  setCachedUser(user, remember);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -89,9 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { code: res.code };
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string, remember = true) => {
     const res = await login({ email, password });
-    persist(res.token, res.user);
+    persist(res.token, res.user, remember);
     setUser(res.user);
     setPasswordWeak(Boolean(res.passwordWeak));
     setHasPassword(Boolean(res.hasPassword));
@@ -108,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role?: Role;
     }) => {
       const res = await verifyRegister(input);
-      persist(res.token, res.user);
+      persist(res.token, res.user, true);
       setUser(res.user);
       setPasswordWeak(Boolean(res.passwordWeak));
       setHasPassword(Boolean(res.hasPassword));
@@ -134,11 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 function getProfileToken() {
-  try {
-    return Boolean(localStorage.getItem('fundigrid.token'));
-  } catch {
-    return false;
-  }
+  return Boolean(getToken());
 }
 
 export function useAuth(): AuthContextValue {

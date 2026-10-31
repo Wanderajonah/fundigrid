@@ -43,6 +43,7 @@ const VerificationsPage = lazy(() => import('./pages/admin/VerificationsPage'));
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage'));
 const AuditTrailPage = lazy(() => import('./pages/admin/AuditTrailPage'));
 const AdminSettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
+const AdminProfilePage = lazy(() => import('./pages/admin/ProfilePage'));
 
 function RouteFallback() {
   return (
@@ -140,6 +141,7 @@ function App() {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="audit" element={<AuditTrailPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="profile" element={<AdminProfilePage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

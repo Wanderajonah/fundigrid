@@ -104,9 +104,19 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
   scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
 }
 
+/* ── Login backdrop ──
+   Pale blue page with soft diagonal bands, echoing the light geometric
+   background behind the sign-in card. */
+.login-bg {
+  background-color: #EAF1F8;
+  background-image:
+    linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.38) 20%, rgba(255, 255, 255, 0.38) 36%, transparent 36%),
+    linear-gradient(115deg, transparent 58%, rgba(255, 255, 255, 0.3) 58%, rgba(255, 255, 255, 0.3) 72%, transparent 72%),
+    linear-gradient(115deg, transparent 86%, rgba(255, 255, 255, 0.26) 86%, rgba(255, 255, 255, 0.26) 100%);
+}
+
 /* ── Splash screen ──
-   15-second launch overlay: fades in, runs the wipe-reveal loader, then
-   fades out. All timings are CSS-only. */
+   Minimal launch overlay: plain white page, one cyan spinner, then a fade. */
 @keyframes splash-container-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -117,85 +127,67 @@ html:has(.theme-admin)::-webkit-scrollbar-thumb {
   to   { opacity: 0; }
 }
 
-/* Splash loader: the unfilled wordmark sits hollow — "Fundi" with a white
-   stroke, "Grid" with a brand-amber stroke — then a second copy on top is
-   revealed left to right by animating its clipping width 0 → 100% over 15s
-   (matching the splash hold), filling "Fundi" white and "Grid" amber.
-   The white glow applies to "Fundi" only — "Grid" fills without a halo.
-   --size scales the strokes, glow and letter spacing. */
-.splash-loader {
-  --color-1: #263238;
-  --color-2: #fff;
-  --size: 1.5px;
-
-  /* 72px at full width, capped down so the wordmark never overflows small screens */
-  font-size: clamp(40px, 13vw, calc(48 * var(--size)));
-  display: inline-block;
-  font-family: Arial, Helvetica, sans-serif;
-  font-weight: bold;
-  color: var(--color-1);
-  box-sizing: border-box;
-  -webkit-text-stroke: calc(1 * var(--size)) var(--color-2);
-  text-shadow:
-    0 0 calc(2 * var(--size)) var(--color-2),
-    0 0 calc(1 * var(--size)) var(--color-2),
-    0 0 calc(1 * var(--size)) var(--color-2);
-  letter-spacing: calc(2 * var(--size));
+/* Ripple loader: a small cyan core with two rings pulsing outward. */
+.splash-ripple {
   position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
 }
 
-/* Unfilled "Grid" is hollow with a brand-amber outline; the wipe then fills
-   it solid amber, and the leftover ghost stroke matches so no seam shows.
-   Grid carries no white glow, so the fill never picks up a white halo. */
-.splash-loader > .splash-loader-brand {
-  color: var(--color-1);
-  -webkit-text-stroke: calc(1 * var(--size)) var(--color-primary);
-  text-shadow: none;
-}
-
-.splash-loader-fill {
+.splash-ripple::before,
+.splash-ripple::after {
+  content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  color: var(--color-2);
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  box-sizing: border-box;
-  -webkit-text-stroke: 0;
-  animation: splash-loader-reveal 15s linear infinite;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid #00B8E6;
+  animation: splash-ripple 1.8s cubic-bezier(0.2, 0.5, 0.4, 1) infinite;
 }
 
-/* The revealed copy is solid, so the wipe visibly fills each word in —
-   Grid drops the inherited white glow so it fills as clean amber. */
-.splash-loader-fill .splash-loader-brand {
-  color: var(--color-primary);
-  text-shadow: none;
+.splash-ripple::after {
+  animation-delay: -0.9s;
 }
 
-@keyframes splash-loader-reveal {
+.splash-ripple-core {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #00B8E6;
+}
+
+@keyframes splash-ripple {
   0% {
-    width: 0%;
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.55;
   }
   100% {
-    width: 100%;
+    transform: scale(1.8);
+    opacity: 0;
   }
 }
 
 .splash-enter {
-  animation: splash-container-in 0.4s ease-out both;
+  animation: splash-container-in 0.3s ease-out both;
 }
 
 .splash-fade-out {
-  animation: splash-container-out 0.55s ease-in both;
+  animation: splash-container-out 0.45s ease-in both;
 }
 
-/* The loader wipe always plays — it is the only feedback on the splash, and
-   a left-to-right fill is gentle enough to keep under reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   .splash-enter,
   .splash-fade-out {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .splash-ripple::before,
+  .splash-ripple::after {
+    animation-duration: 3s;
   }
 }

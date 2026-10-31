@@ -19,17 +19,47 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+// "Remember me" chooses the storage backend: localStorage keeps the session
+// across browser restarts, sessionStorage drops it when the tab closes.
+function readStored(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key) ?? localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
-export function setToken(token: string | null) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+function writeStored(key: string, value: string | null, remember: boolean) {
+  try {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+    if (value !== null) (remember ? localStorage : sessionStorage).setItem(key, value);
+  } catch {
+    // Storage blocked (private mode / quota): the session stays in memory only.
+  }
+}
+
+/** True when the current session was stored with "Remember me". */
+function isRemembered(): boolean {
+  try {
+    return localStorage.getItem(TOKEN_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
+export function getToken(): string | null {
+  return readStored(TOKEN_KEY);
+}
+
+export function setToken(token: string | null, remember = isRemembered()) {
+  writeStored(TOKEN_KEY, token, remember);
 }
 
 export function getCachedUser(): SessionUser | null {
-  const raw = localStorage.getItem(USER_KEY);
+  // A cached user without a token means the session is over — never render it.
+  if (!getToken()) return null;
+  const raw = readStored(USER_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as SessionUser;
@@ -38,9 +68,8 @@ export function getCachedUser(): SessionUser | null {
   }
 }
 
-export function setCachedUser(user: SessionUser | null) {
-  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
-  else localStorage.removeItem(USER_KEY);
+export function setCachedUser(user: SessionUser | null, remember = isRemembered()) {
+  writeStored(USER_KEY, user ? JSON.stringify(user) : null, remember);
 }
 
 export type Role = 'customer' | 'fundi' | 'admin';
