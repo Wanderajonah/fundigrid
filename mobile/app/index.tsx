@@ -12,79 +12,44 @@ import { colors, fonts, spacing } from '../src/theme';
 
 ExpoSplashScreen.preventAutoHideAsync();
 
-const HOLD_BEFORE_POP = 220;
-const STAGGER = 140;
 const NAVIGATE_AFTER = 4000;
+const FADE_IN_MS = 450;
+const FADE_OUT_MS = 350;
 const CITY_ASPECT = 793 / 1983;
 
 export default function SplashScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-
-  const logoScale = useRef(new Animated.Value(0.5)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const wordmarkOpacity = useRef(new Animated.Value(0)).current;
-  const wordmarkShift = useRef(new Animated.Value(12)).current;
-  const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const taglineShift = useRef(new Animated.Value(14)).current;
-  const cityOpacity = useRef(new Animated.Value(0)).current;
-  const cityShift = useRef(new Animated.Value(30)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    let active = true;
-
     const reveal = async () => {
       try {
         await ExpoSplashScreen.hideAsync();
       } catch {
         // native splash already hidden
       }
-      if (!active) return;
-      Animated.sequence([
-        Animated.delay(HOLD_BEFORE_POP),
-        Animated.stagger(STAGGER, [
-          Animated.parallel([
-            Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
-            Animated.timing(logoOpacity, {
-              toValue: 1,
-              duration: 240,
-              easing: Easing.out(Easing.quad),
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.parallel([
-            Animated.spring(wordmarkShift, { toValue: 0, friction: 6, tension: 95, useNativeDriver: true }),
-            Animated.timing(wordmarkOpacity, {
-              toValue: 1,
-              duration: 260,
-              easing: Easing.out(Easing.quad),
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.parallel([
-            Animated.spring(taglineShift, { toValue: 0, friction: 6, tension: 90, useNativeDriver: true }),
-            Animated.timing(taglineOpacity, {
-              toValue: 1,
-              duration: 260,
-              easing: Easing.out(Easing.quad),
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.parallel([
-            Animated.spring(cityShift, { toValue: 0, friction: 7, tension: 70, useNativeDriver: true }),
-            Animated.timing(cityOpacity, {
-              toValue: 1,
-              duration: 320,
-              easing: Easing.out(Easing.quad),
-              useNativeDriver: true,
-            }),
-          ]),
-        ]),
-      ]).start();
+      // Gentle cross-fade from the native splash — opacity only, no movement.
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: FADE_IN_MS,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
     };
 
     reveal();
+
+    // Start the fade-out just before navigating so the hand-off is seamless.
+    const fadeTimer = setTimeout(() => {
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: FADE_OUT_MS,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }).start();
+    }, NAVIGATE_AFTER - FADE_OUT_MS);
 
     // First launch shows onboarding once. Later launches skip it and go
     // straight to sign-in. Enable Location comes back only when it has never
@@ -119,8 +84,9 @@ export default function SplashScreen() {
       router.replace(firstAsk || lostIt ? '/location' : '/role');
     }, NAVIGATE_AFTER);
     return () => {
-      active = false;
+      clearTimeout(fadeTimer);
       clearTimeout(timer);
+      opacity.stopAnimation();
     };
   }, []);
 
@@ -128,52 +94,30 @@ export default function SplashScreen() {
   const cityHeight = Math.round(cityWidth * CITY_ASPECT);
 
   return (
-    <View style={styles.root}>
+    <Animated.View style={[styles.root, { opacity }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <NavigationBar style="light" />
 
       <View style={styles.center}>
-        <Animated.View
-          style={{
-            opacity: logoOpacity,
-            transform: [{ scale: logoScale }],
-            marginBottom: spacing.sm,
-          }}
-        >
+        <View style={{ marginBottom: spacing.sm }}>
           <Image source={IMAGES.logoWhite} style={styles.logo} resizeMode="contain" />
-        </Animated.View>
+        </View>
 
-        <Animated.View
-          style={[
-            styles.wordmark,
-            {
-              opacity: wordmarkOpacity,
-              transform: [{ translateY: wordmarkShift }],
-              marginBottom: spacing.lg,
-            },
-          ]}
-        >
+        <View style={[styles.wordmark, { marginBottom: spacing.lg }]}>
           <Text style={styles.fundi}>Fundi</Text>
           <Text style={styles.grid}>Grid</Text>
-        </Animated.View>
+        </View>
 
-        <Animated.View
-          style={{
-            opacity: taglineOpacity,
-            transform: [{ translateY: taglineShift }],
-          }}
-        >
+        <View>
           <Text style={styles.tagline}>Skilled Artisans. Near You.</Text>
-        </Animated.View>
+        </View>
       </View>
 
-      <Animated.View
+      <View
         style={[
           styles.cityWrap,
           {
             paddingBottom: Math.max(insets.bottom, 20),
-            opacity: cityOpacity,
-            transform: [{ translateY: cityShift }],
           },
         ]}
       >
@@ -182,8 +126,8 @@ export default function SplashScreen() {
           style={{ width: cityWidth, height: cityHeight }}
           resizeMode="contain"
         />
-      </Animated.View>
-    </View>
+      </View>
+    </Animated.View>
   );
 }
 
