@@ -1,0 +1,13 @@
+# Normalise line endings and help GitHub Linguist classify the backend.
+* text=auto
+
+*.cs      text diff=csharp linguist-language=C#
+*.csproj  text
+*.sln     text
+*.sh      text eol=lf
+*.bat     text eol=crlf
+
+# Generated/build output never belongs in the repo.
+bin/      export-ignore
+obj/      export-ignore
+node_modules/ export-ignore
