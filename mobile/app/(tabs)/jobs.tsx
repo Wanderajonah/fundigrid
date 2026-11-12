@@ -90,7 +90,7 @@ export default function JobsScreen() {
                 key={String(b.id)}
                 service={b.category || 'Service request'}
                 location={b.address || 'Kampala'}
-                date={formatDate(b.scheduledFor) || formatDate(b.created_at)}
+                date={formatDate(b.scheduledFor) || formatDate(b.createdAt)}
                 status={statusKey(b.status)}
                 onPress={() =>
                   router.push({

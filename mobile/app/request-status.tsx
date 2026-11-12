@@ -248,7 +248,7 @@ export default function RequestStatusScreen() {
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Requested</Text>
-            <Text style={styles.detailValue}>{stamp(booking.created_at) || '—'}</Text>
+            <Text style={styles.detailValue}>{stamp(booking.createdAt) || '—'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Location</Text>

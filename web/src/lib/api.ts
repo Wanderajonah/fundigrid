@@ -146,7 +146,7 @@ export interface Booking {
   proposedBy?: 'FUNDI' | 'CLIENT' | null;
   agreedPrice?: number | null;
   priceAgreed?: boolean | null;
-  created_at?: string;
+  createdAt?: string;
   acceptedAt?: string | null;
   onTheWayAt?: string | null;
   arrivedAt?: string | null;
@@ -320,7 +320,7 @@ export interface Review {
   rating?: number;
   comment?: string | null;
   clientName?: string | null;
-  created_at?: string;
+  createdAt?: string;
 }
 
 export function getReviews(fundiId: string) {
@@ -389,7 +389,7 @@ export interface Transaction {
   currency?: string;
   description?: string | null;
   status?: string;
-  created_at?: string;
+  createdAt?: string;
 }
 
 export function getWallet() {
@@ -415,7 +415,7 @@ export interface AdminRequest {
   images?: string[];
   status?: string;
   scheduledFor?: string | null;
-  created_at?: string;
+  createdAt?: string;
   fundiId?: string | null;
   fundiName?: string | null;
   agreedPrice?: number | null;
@@ -551,7 +551,7 @@ export interface AdminAuditLog {
   ipAddress: string;
   userAgent: string;
   meta: Record<string, unknown>;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface AuditLogQuery {

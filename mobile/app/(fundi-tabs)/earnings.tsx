@@ -65,7 +65,7 @@ export default function FundiEarningsScreen() {
     for (const t of transactions) {
       if (t?.type !== 'payment_received') continue;
       if (t.status && t.status !== 'completed') continue;
-      const created = new Date(t.created_at ?? t.createdAt ?? 0);
+      const created = new Date(t.createdAt ?? 0);
       if (Number.isNaN(created.getTime()) || created < weekStart) continue;
       const idx = (created.getDay() + 6) % 7;
       totals[idx] += Number(t.amount || 0);

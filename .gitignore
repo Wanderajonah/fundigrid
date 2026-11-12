@@ -21,6 +21,8 @@ build/
 .expo/
 web-build/
 *.tsbuildinfo
+bin/
+obj/
 
 # Vercel CLI link (orgId / projectId — the deploy token lives in Actions secrets)
 .vercel/

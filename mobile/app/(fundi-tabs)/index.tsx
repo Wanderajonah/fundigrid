@@ -59,8 +59,8 @@ export default function FundiDashboard() {
   useEffect(() => {
     if (!token) return;
     const bookingId =
-      activeBooking && (activeBooking.id || activeBooking._id)
-        ? String(activeBooking.id || activeBooking._id)
+      activeBooking?.id
+        ? String(activeBooking.id)
         : undefined;
     if (!bookingId) {
       stopFundiLocationShare();
@@ -68,7 +68,7 @@ export default function FundiDashboard() {
     }
     startFundiLocationShare({ token, bookingId });
     return () => stopFundiLocationShare();
-  }, [token, activeBooking?.id, activeBooking?._id, activeBooking?.status]);
+  }, [token, activeBooking?.id, activeBooking?.status]);
 
   const displayName = (profile?.name || user?.name || '').trim();
   const firstName = (profile?.firstName || user?.firstName || displayName.split(' ')[0] || '').trim();
@@ -198,7 +198,7 @@ export default function FundiDashboard() {
             onPress={() =>
               router.push({
                 pathname: '/fundi-job-details',
-                params: { bookingId: String(pendingBooking.id || pendingBooking._id) },
+                params: { bookingId: String(pendingBooking.id) },
               })
             }
           >

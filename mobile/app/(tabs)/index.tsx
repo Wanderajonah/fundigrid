@@ -232,7 +232,7 @@ export default function ClientHome() {
         ) : (
           recent.map((b) => {
             const image = categoryImage(b.category);
-            const when = formatDate(b.scheduledFor) || formatDate(b.created_at);
+            const when = formatDate(b.scheduledFor) || formatDate(b.createdAt);
             return (
               <Pressable key={String(b.id)} onPress={() => router.push('/(tabs)/jobs')} style={styles.requestCard}>
                 <View style={styles.requestIcon}>

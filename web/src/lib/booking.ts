@@ -38,7 +38,7 @@ export function bookingAmount(booking: Booking) {
 }
 
 export function bookingDate(booking: Booking) {
-  const raw = booking.scheduledFor || booking.created_at;
+  const raw = booking.scheduledFor || booking.createdAt;
   if (!raw) return '—';
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return '—';
@@ -51,8 +51,8 @@ export function bookingLocation(booking: Booking) {
 }
 
 export function bookingAgeDays(booking: Booking) {
-  if (!booking.created_at) return Number.POSITIVE_INFINITY;
-  const created = new Date(booking.created_at).getTime();
+  if (!booking.createdAt) return Number.POSITIVE_INFINITY;
+  const created = new Date(booking.createdAt).getTime();
   if (Number.isNaN(created)) return Number.POSITIVE_INFINITY;
   return (Date.now() - created) / 86_400_000;
 }

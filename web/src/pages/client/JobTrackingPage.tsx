@@ -41,7 +41,7 @@ export default function JobTrackingPage() {
   const steps = useMemo(() => {
     if (!booking) return [];
     return [
-      { label: 'Requested', at: booking.created_at },
+      { label: 'Requested', at: booking.createdAt },
       { label: 'Fundi accepted', at: booking.acceptedAt },
       { label: 'On the way', at: booking.onTheWayAt },
       { label: 'Arrived', at: booking.arrivedAt },

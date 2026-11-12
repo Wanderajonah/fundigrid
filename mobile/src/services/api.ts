@@ -359,11 +359,6 @@ export async function getNearbyFundis(params: {
   return request(`/maps/nearby-fundis${queryString(params)}`, { token: token ?? undefined });
 }
 
-export async function getRoutePreview(params: { origin: string; destination: string }) {
-  const token = await getToken();
-  return request(`/maps/route${queryString(params)}`, { token: token ?? undefined });
-}
-
 // ── Reviews ──
 
 export async function getReviewsByFundi(fundiId: string, token?: string | null) {

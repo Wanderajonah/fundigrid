@@ -38,7 +38,7 @@ type Review = {
   comment?: string;
   service?: string;
   photoUrls?: string[];
-  created_at?: string;
+  createdAt?: string;
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -275,7 +275,7 @@ export default function FundiProfileScreen() {
                     <View key={review.id || String(index)} style={styles.reviewCard}>
                       <View style={styles.reviewHead}>
                         <RatingStars rating={Number(review.rating ?? 0)} size={14} />
-                        <Text style={styles.reviewDate}>{formatDate(review.created_at)}</Text>
+                        <Text style={styles.reviewDate}>{formatDate(review.createdAt)}</Text>
                       </View>
                       {!!review.service && <Text style={styles.reviewService}>{review.service}</Text>}
                       {!!review.comment && <Text style={styles.reviewComment}>{review.comment}</Text>}

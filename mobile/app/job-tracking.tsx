@@ -78,7 +78,7 @@ export default function JobTrackingScreen() {
       const data = await getClientBookings(token);
       const list = Array.isArray(data) ? data : data.bookings ?? [];
       const active = bookingId
-        ? list.find((b: any) => String(b.id) === String(bookingId) || String(b._id) === String(bookingId))
+        ? list.find((b: any) => String(b.id) === String(bookingId))
         : list.find((b: any) => ACTIVE_STATUSES.includes(b.status)) || list[0];
       if (active) {
         setBooking(active);

@@ -69,7 +69,7 @@ function toJob(row: AdminRequest): JobRequest {
     location: shortLabel(row.address),
     customer: row.clientName || 'Client',
     customerPhone: row.clientPhone || '',
-    date: formatDate(row.created_at),
+    date: formatDate(row.createdAt),
     status: statusToJob(row.status),
     description: row.description || '',
     address: row.address || '',

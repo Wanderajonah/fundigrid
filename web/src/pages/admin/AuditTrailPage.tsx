@@ -201,7 +201,7 @@ export default function AuditTrailPage() {
               )}
 
               {!loading && rows.map(row => {
-                const stamp = when(row.created_at);
+                const stamp = when(row.createdAt);
                 const cat = CATEGORY[row.category] || CATEGORY.users;
                 const actor = row.actorName || 'Unknown account';
                 return (

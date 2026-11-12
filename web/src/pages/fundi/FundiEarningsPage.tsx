@@ -94,7 +94,7 @@ export default function FundiEarningsPage() {
                     <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${t.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{t.status || 'pending'}</span>
                   </td>
                   <td className="px-8 py-5 font-bold text-gray-900">{money(Number(t.amount || 0), t.currency || currency)}</td>
-                  <td className="px-8 py-5 text-sm text-gray-400">{when(t.created_at)}</td>
+                  <td className="px-8 py-5 text-sm text-gray-400">{when(t.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -110,7 +110,7 @@ export default function FundiProfilePage() {
             {reviews.map((r, i) => {
               const name = r.clientName?.trim() || 'Client';
               const rating = Number(r.rating ?? 0);
-              const date = r.created_at ? new Date(r.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+              const date = r.createdAt ? new Date(r.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
               return (
                 <div key={r.id || i}>
                   <div className="flex items-center justify-between mb-3">

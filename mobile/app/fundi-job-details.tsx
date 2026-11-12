@@ -198,7 +198,7 @@ export default function FundiJobDetailsScreen() {
                 />
               </View>
               <Text style={styles.subtitle}>
-                {booking.fundiName ? `Requested by a client · ${formatDate(booking.created_at)}` : formatDate(booking.created_at)}
+                {booking.fundiName ? `Requested by a client · ${formatDate(booking.createdAt)}` : formatDate(booking.createdAt)}
               </Text>
             </View>
 
