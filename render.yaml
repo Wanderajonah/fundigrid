@@ -1,0 +1,61 @@
+# Render Blueprint — FundiGrid API
+#
+# Apply with: Render Dashboard → New → Blueprint → select this repo.
+# The service name `fundigrid` keeps the public hostname
+# https://fundigrid.onrender.com, so the web and mobile clients need no URL
+# changes.
+#
+# Secrets marked `sync: false` are prompted for in the Render dashboard on the
+# first apply and are never committed.
+
+services:
+  - type: web
+    name: fundigrid
+    runtime: docker
+    region: frankfurt # keep the Neon database in eu-central-1 (Frankfurt)
+    # plan: free      # uncomment for a free instance (sleeps after 15 min)
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      # First deploy only. The schema is idempotent; set this to "false" once
+      # the database has been migrated (or use a pre-deploy command).
+      - key: RUN_MIGRATIONS
+        value: "true"
+
+      # Neon pooled connection string, e.g.
+      # postgresql://user:pass@ep-xxx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+
+      # Must match the old Node value so existing sessions stay valid.
+      - key: JWT_SECRET
+        sync: false
+
+      - key: ADMIN_NAME
+        value: Ufundi Admin
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      - key: COMMS_ENDPOINT
+        value: https://comms.egosms.co/api/v1/json/
+      - key: COMMS_USERNAME
+        sync: false
+      - key: COMMS_API_KEY
+        sync: false
+      - key: COMMS_SENDER_ID
+        value: Ufundi
+      - key: COMMS_DEV_MODE
+        value: "false"
+      - key: COMMS_LOG_OTP
+        value: "true"
+
+      - key: GOOGLE_WEB_CLIENT_ID
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
