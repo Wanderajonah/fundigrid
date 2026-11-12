@@ -73,6 +73,13 @@ public static class ConnectionStringFactory
             builder.MaxAutoPrepare = 0;
             builder.NoResetOnClose = true;
         }
+
+        // Supabase plans cap concurrent connections well below Npgsql's default
+        // pool of 100. Keep the pool small so one Render instance cannot
+        // exhaust the database's connection budget.
+        if (builder.MaxPoolSize > 20) builder.MaxPoolSize = 20;
+        if (builder.Timeout == 0) builder.Timeout = 15;
+
         builder.ApplicationName ??= "FundiGrid.Api";
         return builder.ConnectionString;
     }
