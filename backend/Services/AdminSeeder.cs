@@ -50,6 +50,16 @@ public sealed class AdminSeeder : IHostedService
 
             if (admin is null)
             {
+                // Never create a second admin just because ADMIN_EMAIL drifted
+                // from the row already in the database.
+                if (await db.Users.AnyAsync(u => u.Role == "admin", cancellationToken))
+                {
+                    _logger.LogWarning(
+                        "Admin {Email} not found, but an admin account already exists; leaving it unchanged",
+                        email);
+                    return;
+                }
+
                 if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(bootstrapPassword))
                 {
                     _logger.LogWarning(
