@@ -57,7 +57,7 @@ Method and event names match the old Socket.IO ones: `user_connect`,
 ## Deploy (Render)
 
 Build the included `Dockerfile`. Configure the same environment variables as
-`.env.example`, keep the existing service hostname (`fundigrid.onrender.com`),
+`.env.example`, keep the existing service hostname (`fundigrid-1.onrender.com`),
 and use `/api/health` as the health check. WebSockets work without extra
 configuration; `PORT` is injected by Render and read by `Program.cs`.
 

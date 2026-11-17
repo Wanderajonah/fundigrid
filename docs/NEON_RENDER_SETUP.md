@@ -4,7 +4,7 @@ Target architecture:
 
 ```
 Expo mobile ─┐
-             ├── https://fundigrid.onrender.com/api  (Render, Docker, Frankfurt)
+             ├── https://fundigrid-1.onrender.com/api  (Render, Docker, Frankfurt)
 Vercel web ──┘                 │
                                └── Neon Postgres (eu-central-1 / Frankfurt)
 ```
@@ -119,7 +119,7 @@ The blueprint creates a Docker web service named `fundigrid` with:
 > **Name conflict?** If a Node service named `fundigrid` already exists, Render
 > may refuse the name. Two options:
 > - Delete the old service first (after copying its env vars), then apply the
->   blueprint — the hostname `fundigrid.onrender.com` is reused.
+>   blueprint — the hostname `fundigrid-1.onrender.com` is reused.
 > - Or temporarily rename the blueprint service to `fundigrid-api`, verify it,
 >   then delete the old service and rename the new one to `fundigrid`.
 
@@ -140,7 +140,7 @@ If the schema was already applied in step 2, that line is harmless.
 ## 4. Verify
 
 ```bash
-curl https://fundigrid.onrender.com/api/health
+curl https://fundigrid-1.onrender.com/api/health
 # {"status":"ok","service":"Ufundi API",...}
 ```
 
@@ -170,11 +170,11 @@ dotnet /app/FundiGrid.Api.dll --migrate
 
 ## 6. Clients
 
-The hostname is unchanged (`fundigrid.onrender.com`), so no URL edits are
-needed:
+The API is deployed at `https://fundigrid-1.onrender.com`, and both clients
+are pinned to it:
 
 - **Web:** `.github/workflows/deploy.yml` already sets
-  `VITE_API_URL=https://fundigrid.onrender.com/api`. Push to `main` to deploy.
+  `VITE_API_URL=https://fundigrid-1.onrender.com/api`. Push to `main` to deploy.
 - **Mobile:** `mobile/eas.json` now sets `EXPO_PUBLIC_API_URL` in the
   **production** profile too. Build and submit:
   ```bash
@@ -187,7 +187,7 @@ needed:
 
 ## 7. Post-launch checks
 
-- [ ] `https://fundigrid.onrender.com/api/health` returns `status: ok`
+- [ ] `https://fundigrid-1.onrender.com/api/health` returns `status: ok`
 - [ ] Admin login works
 - [ ] A new client can request OTP and sign up
 - [ ] A booking reaches a fundi and can be accepted

@@ -30,7 +30,7 @@ const envBase = (process.env.EXPO_PUBLIC_API_URL || '').trim().replace(/\/+$/, '
 const envHost = hostnameOf(envBase);
 const devHost = metroHost();
 
-// An explicit hostname in env (e.g. https://fundigrid.onrender.com/api) is a
+// An explicit hostname in env (e.g. https://fundigrid-1.onrender.com/api) is a
 // deliberate target: use it alone so development builds talk to the deployed
 // backend instead of silently falling back to the LAN / Metro host.
 const explicitTarget = Boolean(envBase && envHost && !isIp(envHost));

@@ -49,7 +49,7 @@ jobs:
         env:
           # The browser must reach the API directly — Vite's /api proxy only
           # exists in dev. Mirrors eas.json's production API URL.
-          VITE_API_URL: https://fundigrid.onrender.com/api
+          VITE_API_URL: https://fundigrid-1.onrender.com/api
 
       - name: Deploy Project Artifacts to Vercel
         run: vercel deploy --prebuilt --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }}

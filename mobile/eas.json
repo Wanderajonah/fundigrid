@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fundigrid.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://fundigrid-1.onrender.com/api"
       }
     },
     "preview": {
@@ -17,7 +17,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fundigrid.onrender.com/api",
+        "EXPO_PUBLIC_API_URL": "https://fundigrid-1.onrender.com/api",
         "EXPO_PUBLIC_MAP_PROVIDER": "maplibre"
       }
     },
@@ -26,7 +26,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fundigrid.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://fundigrid-1.onrender.com/api"
       }
     }
   },

@@ -1,8 +1,8 @@
 # Render Blueprint — FundiGrid API
 #
 # Apply with: Render Dashboard → New → Blueprint → select this repo.
-# The service name `fundigrid` keeps the public hostname
-# https://fundigrid.onrender.com, so the web and mobile clients need no URL
+# The service name `fundigrid-1` keeps the public hostname
+# https://fundigrid-1.onrender.com, so the web and mobile clients need no URL
 # changes.
 #
 # Secrets marked `sync: false` are prompted for in the Render dashboard on the
@@ -10,7 +10,7 @@
 
 services:
   - type: web
-    name: fundigrid
+    name: fundigrid-1
     runtime: docker
     region: frankfurt # keep the Neon database in eu-central-1 (Frankfurt)
     # plan: free      # uncomment for a free instance (sleeps after 15 min)
