@@ -27,7 +27,7 @@ export default function JobCompletedScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <NavigationBar style="light" />
-      <StatusBar barStyle="light-content" backgroundColor={colors.darkBlack} />
+      <StatusBar barStyle="light-content" />
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.iconWrap}>
           <Ionicons name="checkmark-circle" size={64} color={colors.success} />

@@ -3,7 +3,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import type { ScrollView as ScrollViewType } from 'react-native';
+/** RN 0.88 types these as components, so refs use the instance type. */
+type ScrollViewRef = React.ComponentRef<typeof ScrollView>;
+type TextInputRef = React.ComponentRef<typeof TextInput>;
 import Screen from '../../src/components/Screen';
 import { IMAGES } from '../../src/assets';
 import { REQUESTABLE_CATEGORIES, categoryLabel, categoryImage } from '../../src/data/categories';
@@ -55,8 +57,8 @@ export default function ClientHome() {
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const { token, user, refreshUser } = useAuth();
-  const scrollRef = useRef<ScrollViewType>(null);
-  const searchRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollViewRef>(null);
+  const searchRef = useRef<TextInputRef>(null);
   const cardWidth = Math.max(width - spacing.md * 2, 0);
   const term = query.trim().toLowerCase();
   const visibleServices = term

@@ -95,7 +95,7 @@ export default function SplashScreen() {
 
   return (
     <Animated.View style={[styles.root, { opacity }]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+      <StatusBar barStyle="light-content" />
       <NavigationBar style="light" />
 
       <View style={styles.center}>

@@ -3,6 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, radius, spacing, shadowSm } from '../theme';
 
+/** RN 0.88 types ScrollView as a component, so the ref is its instance type. */
+type ScrollViewRef = React.ComponentRef<typeof ScrollView>;
+
 type Props = {
   label?: string;
   /** 24-hour value stored as "HH:mm" — the format the backend keeps. */
@@ -44,8 +47,8 @@ export default function TimePickerField({
   const parsed = parse(value);
   const [hour, setHour] = useState(parsed.h);
   const [minute, setMinute] = useState(parsed.m);
-  const hourRef = useRef<ScrollView>(null);
-  const minRef = useRef<ScrollView>(null);
+  const hourRef = useRef<ScrollViewRef>(null);
+  const minRef = useRef<ScrollViewRef>(null);
 
   // Sync the wheels with the saved value every time the sheet opens.
   useEffect(() => {
@@ -60,7 +63,7 @@ export default function TimePickerField({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const jumpTo = (ref: React.RefObject<ScrollView | null>, v: number) => {
+  const jumpTo = (ref: React.RefObject<ScrollViewRef | null>, v: number) => {
     ref.current?.scrollTo({ y: v * ITEM_HEIGHT, animated: true });
   };
 
@@ -71,7 +74,7 @@ export default function TimePickerField({
     items: number[],
     selected: number,
     onSelect: (v: number) => void,
-    ref: React.RefObject<ScrollView | null>,
+    ref: React.RefObject<ScrollViewRef | null>,
   ) => (
     <View style={styles.wheelWrap}>
       <View style={styles.band} />

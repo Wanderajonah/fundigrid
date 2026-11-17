@@ -36,7 +36,7 @@ export default function ClientTabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid" size={size} color={color} />
+            <Ionicons name="grid" size={size} color={color as string} />
           ),
         }}
       />
@@ -45,7 +45,7 @@ export default function ClientTabsLayout() {
         options={{
           title: 'Jobs',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="briefcase" size={size} color={color} />
+            <Ionicons name="briefcase" size={size} color={color as string} />
           ),
         }}
       />
@@ -57,7 +57,7 @@ export default function ClientTabsLayout() {
             <Ionicons
               name="chatbubble-ellipses"
               size={size}
-              color={color}
+              color={color as string}
             />
           ),
         }}
@@ -67,7 +67,7 @@ export default function ClientTabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+            <Ionicons name="person" size={size} color={color as string} />
           ),
         }}
       />

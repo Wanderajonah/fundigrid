@@ -238,7 +238,7 @@ export default function AvailableFundisScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" />
 
       <Animated.View style={[styles.mapContainer, { height: mapHeight }]}>
         {loading ? (

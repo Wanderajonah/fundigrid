@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View, type TextInputKeyPressEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import PrimaryButton from '../src/components/PrimaryButton';
 import { IMAGES } from '../src/assets';
@@ -25,7 +25,7 @@ export default function OtpScreen() {
   const [code, setCode] = useState(['', '', '', '']);
   const [seconds, setSeconds] = useState(300);
   const [loading, setLoading] = useState(false);
-  const refs = useRef<(TextInput | null)[]>([]);
+  const refs = useRef<(React.ComponentRef<typeof TextInput> | null)[]>([]);
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -71,7 +71,7 @@ export default function OtpScreen() {
     if (next.every((d) => d !== '')) handleVerify(next.join(''));
   };
 
-  const handleKeyPress = (i: number, e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+  const handleKeyPress = (i: number, e: TextInputKeyPressEvent) => {
     if (e.nativeEvent.key !== 'Backspace' || code[i] || i === 0) return;
     const next = [...code];
     next[i - 1] = '';

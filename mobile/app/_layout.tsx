@@ -22,7 +22,7 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.black }}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.black} />
+        <StatusBar barStyle="light-content" />
       </View>
     );
   }
@@ -31,7 +31,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <NavigationBar style="dark" />
-        <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
+        <StatusBar barStyle="dark-content" />
         <Stack
           screenOptions={{
             headerShown: false,
