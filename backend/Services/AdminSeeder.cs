@@ -5,9 +5,10 @@ using Microsoft.EntityFrameworkCore;
 namespace FundiGrid.Api.Services;
 
 /// <summary>
-/// Re-seeds the web admin account on every boot, matching the Node backend:
-/// the configured email owns an admin row whose password is reset to the
-/// configured value.
+/// Ensures the web admin account exists. Credentials live in the database:
+/// ADMIN_EMAIL/ADMIN_PASSWORD only bootstrap a brand-new database, and never
+/// overwrite an existing admin's password unless ADMIN_RESET_PASSWORD=true is
+/// set explicitly.
 /// </summary>
 public sealed class AdminSeeder : IHostedService
 {
@@ -33,27 +34,53 @@ public sealed class AdminSeeder : IHostedService
             var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var firstName = parts.Length > 0 ? parts[0] : "Admin";
             var lastName = parts.Length > 1 ? string.Join(' ', parts.Skip(1)) : "";
-            var email = (_config["ADMIN_EMAIL"] ?? "admin@ufundi.ug").Trim().ToLowerInvariant();
-            var password = _config["ADMIN_PASSWORD"] ?? "password123";
+            var email = (_config["ADMIN_EMAIL"] ?? "").Trim().ToLowerInvariant();
+            var bootstrapPassword = _config["ADMIN_PASSWORD"];
+            var resetPassword = string.Equals(
+                _config["ADMIN_RESET_PASSWORD"], "true", StringComparison.OrdinalIgnoreCase);
 
-            var admin = await db.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+            // With no ADMIN_EMAIL configured, fall back to the existing admin
+            // row so boot never creates a duplicate account.
+            var admin = string.IsNullOrEmpty(email)
+                ? await db.Users
+                    .Where(u => u.Role == "admin")
+                    .OrderBy(u => u.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken)
+                : await db.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
             if (admin is null)
             {
-                admin = new User { Id = Guid.NewGuid().ToString(), Email = email };
+                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(bootstrapPassword))
+                {
+                    _logger.LogWarning(
+                        "No admin account found and ADMIN_EMAIL/ADMIN_PASSWORD are not both set; skipping admin seed");
+                    return;
+                }
+
+                admin = new User
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Email = email,
+                    Password = BCrypt.Net.BCrypt.HashPassword(bootstrapPassword, 10),
+                };
                 db.Users.Add(admin);
+                _logger.LogInformation("Admin user created: {Email}", email);
+            }
+            else if (resetPassword && !string.IsNullOrEmpty(bootstrapPassword))
+            {
+                admin.Password = BCrypt.Net.BCrypt.HashPassword(bootstrapPassword, 10);
+                _logger.LogWarning("Admin password reset from ADMIN_PASSWORD (ADMIN_RESET_PASSWORD=true)");
             }
 
             admin.FirstName = firstName;
             admin.LastName = lastName;
-            admin.Email = email;
-            admin.Password = BCrypt.Net.BCrypt.HashPassword(password, 10);
             admin.Role = "admin";
             admin.PhoneVerified = true;
             admin.OnboardingComplete = true;
             admin.Status = "active";
 
             await db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Admin user ready: {Email}", email);
+            _logger.LogInformation("Admin user ready: {Email}", admin.Email);
         }
         catch (Exception ex)
         {

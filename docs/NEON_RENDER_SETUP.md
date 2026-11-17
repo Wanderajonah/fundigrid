@@ -98,8 +98,8 @@ git push origin feat/aspnet-backend
    |---|---|
    | `DATABASE_URL` | Neon **pooled** connection string from step 1 |
    | `JWT_SECRET` | copied from the old Node service |
-   | `ADMIN_EMAIL` | admin sign-in email |
-   | `ADMIN_PASSWORD` | admin password |
+   | `ADMIN_EMAIL` | admin sign-in email (optional; only seeds an empty DB) |
+   | `ADMIN_PASSWORD` | bootstrap password (optional; never overwrites an existing admin) |
    | `COMMS_USERNAME` | EgoSMS username |
    | `COMMS_API_KEY` | EgoSMS API key |
    | `GOOGLE_WEB_CLIENT_ID` | Google OAuth client id |

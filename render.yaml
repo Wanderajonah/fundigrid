@@ -35,12 +35,17 @@ services:
       - key: JWT_SECRET
         sync: false
 
+      # Admin credentials live in the database. These bootstrap an empty
+      # database only; an existing admin's password is never overwritten.
       - key: ADMIN_NAME
         value: Ufundi Admin
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+        # Optional: set ADMIN_RESET_PASSWORD=true to force a reset from env.
+      - key: ADMIN_RESET_PASSWORD
+        value: "false"
 
       - key: COMMS_ENDPOINT
         value: https://comms.egosms.co/api/v1/json/
