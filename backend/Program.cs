@@ -121,7 +121,7 @@ app.MapGet("/api/health", (IConfiguration config) =>
     return Results.Json(new
     {
         status = "ok",
-        service = "Ufundi API",
+        service = "DutyCalz API",
         features = new
         {
             auth = true,
