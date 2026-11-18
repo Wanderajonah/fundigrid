@@ -6,7 +6,7 @@ namespace FundiGrid.Api.Services;
 
 public sealed record OtpSendResult(bool Success, string? Code = null, bool DevMode = false, string? Message = null);
 
-/// <summary>Phone OTP issuance and verification (register + reset purposes).</summary>
+/// <summary>Phone OTP issuance and verification (register, login + reset purposes).</summary>
 public sealed class OtpService
 {
     private const int ExpiryMinutes = 5;

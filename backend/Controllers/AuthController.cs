@@ -63,6 +63,17 @@ public sealed class AuthController : ControllerBase
         public string? Role { get; set; }
     }
 
+    public sealed class VerifyLoginRequest
+    {
+        public string? Phone { get; set; }
+        public string? Code { get; set; }
+        // Used only when the number is new and the account is created on the
+        // spot, so a first sign-in also registers the user.
+        public string? Role { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+    }
+
     public sealed class ForgotPasswordRequest
     {
         public string? Phone { get; set; }
@@ -249,7 +260,11 @@ public sealed class AuthController : ControllerBase
         var phone = UserMapping.NormalisePhone(body.Phone);
         if (string.IsNullOrEmpty(phone)) throw ApiException.BadRequest("Phone is required");
 
-        var purpose = body.Purpose is "register" or "reset" ? body.Purpose : "register";
+        var purpose = body.Purpose is "register" or "reset" or "login" ? body.Purpose : "register";
+
+        // Unknown numbers are allowed through: verifying the code either signs
+        // the user in or creates their account (see VerifyLogin), so a first
+        // sign-in needs no separate registration step.
         var result = await _otp.SendOtpAsync(phone, purpose, ct);
         if (!result.Success)
         {
@@ -306,6 +321,87 @@ public sealed class AuthController : ControllerBase
             hasPassword = session.HasPassword,
             user = session.User,
             accountExisted = existed,
+        });
+    }
+
+    // Passwordless sign-in: the phone number proves ownership with a one-time
+    // code, and the returned session is the same 30-day JWT as password login.
+    [HttpPost("otp/verify-login")]
+    public async Task<IActionResult> VerifyLogin(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] VerifyLoginRequest? body,
+        CancellationToken ct)
+    {
+        body ??= new VerifyLoginRequest();
+        var phone = UserMapping.NormalisePhone(body.Phone);
+        var code = body.Code ?? "";
+        if (string.IsNullOrEmpty(phone) || string.IsNullOrEmpty(code))
+        {
+            throw ApiException.BadRequest("Phone and code are required");
+        }
+
+        var verified = await _otp.VerifyOtpAsync(phone, code, "login", ct);
+        if (!verified.Success) throw ApiException.BadRequest(verified.Message ?? "Invalid code.");
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Phone == phone, ct);
+        var created = false;
+
+        // A verified code proves the number, so a first-time sign-in creates
+        // the account instead of dead-ending with a 404.
+        if (user is null)
+        {
+            var registered = await EnsureAccountAsync(phone, new VerifyRegisterRequest
+            {
+                Phone = phone,
+                Role = body.Role,
+                FirstName = body.FirstName,
+                LastName = body.LastName,
+            }, ct);
+            user = registered.User;
+            created = true;
+
+            await _audit.RecordAsync(HttpContext, user, "auth.register", "auth",
+                summary: "Registered a new account after OTP verification",
+                meta: new { phone, role = user.Role }, ct: ct);
+        }
+
+        if (!string.IsNullOrEmpty(user.Status) && user.Status != "active")
+        {
+            await _audit.RecordAsync(HttpContext, user, "auth.login_blocked", "auth",
+                summary: "Sign-in blocked: account is inactive",
+                meta: new { identifier = phone, reason = "inactive" }, ct: ct);
+            return StatusCode(403, new
+            {
+                success = false,
+                message = "This account is inactive. Contact the administrator.",
+            });
+        }
+
+        // Proving the number sidesteps the password attack surface entirely,
+        // so clear any lockout left over from the password era.
+        if (user.FailedLoginAttempts != 0 || user.LockedUntil is not null
+            || user.LockoutBatches != 0 || user.PasswordBlocked)
+        {
+            user.FailedLoginAttempts = 0;
+            user.LockedUntil = null;
+            user.LockoutBatches = 0;
+            user.PasswordBlocked = false;
+            await _db.SaveChangesAsync(ct);
+            _cache.Invalidate(user.Id);
+        }
+
+        await _audit.RecordAsync(HttpContext, user, "auth.login", "auth",
+            summary: "Signed in via phone OTP",
+            meta: new { identifier = phone, role = user.Role }, ct: ct);
+
+        var session = await _mapping.SessionAsync(user, ct);
+        return Ok(new
+        {
+            success = session.Success,
+            token = session.Token,
+            passwordWeak = session.PasswordWeak,
+            hasPassword = session.HasPassword,
+            user = session.User,
+            accountExisted = !created,
         });
     }
 

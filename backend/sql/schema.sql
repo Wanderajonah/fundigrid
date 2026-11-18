@@ -345,7 +345,7 @@ create index if not exists transactions_user_idx on transactions ("userId", crea
 create table if not exists otps (
   id          text primary key default gen_random_uuid()::text,
   phone       text not null,
-  purpose     text not null check (purpose in ('register','reset')),
+  purpose     text not null check (purpose in ('register','reset','login')),
   "codeHash"  text not null,
   "expiresAt" timestamptz not null,
   attempts    double precision not null default 0,
@@ -355,11 +355,11 @@ create table if not exists otps (
   unique (phone, purpose)
 );
 
--- Older installs still allow only ('register','login'); OTP is now used for
--- phone verification (register) and password reset (reset) only.
-delete from otps where purpose not in ('register','reset');
+-- Phone OTP covers registration, password reset and passwordless sign-in.
+-- Older installs allowed only ('register','reset'), which rejected login codes.
+delete from otps where purpose not in ('register','reset','login');
 alter table otps drop constraint if exists otps_purpose_check;
-alter table otps add constraint otps_purpose_check check (purpose in ('register','reset'));
+alter table otps add constraint otps_purpose_check check (purpose in ('register','reset','login'));
 
 -- ============================================================
 -- email_otps
